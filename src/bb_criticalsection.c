@@ -21,14 +21,12 @@ void bb_critical_section_shutdown(bb_critical_section *cs)
 	DeleteCriticalSection(&cs->platform);
 }
 
-_Acquires_lock_(cs->platform)
-void bb_critical_section_lock_impl(bb_critical_section *cs)
+_Acquires_lock_(cs->platform) void bb_critical_section_lock_impl(bb_critical_section *cs)
 {
 	EnterCriticalSection(&cs->platform);
 }
 
-_Releases_lock_(cs->platform)
-void bb_critical_section_unlock_impl(bb_critical_section *cs)
+_Releases_lock_(cs->platform) void bb_critical_section_unlock_impl(bb_critical_section *cs)
 {
 	LeaveCriticalSection(&cs->platform);
 }

@@ -23,7 +23,7 @@ static b32 s_break_on_assert = true;
 
 static bbassert_action_e default_assert_handler(const char *condition, const char *message, const char *file, const int line)
 {
-	// static buffers so we can safely assert in a memory allocator :)
+// static buffers so we can safely assert in a memory allocator :)
 #if BB_USING(BB_COMPILER_MSVC)
 	static __declspec(thread) char output[1024];
 #else
