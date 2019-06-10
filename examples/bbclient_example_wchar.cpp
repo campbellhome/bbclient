@@ -1,0 +1,126 @@
+// Copyright (c) 2012-2019 Matt Campbell
+// MIT license (see License.txt)
+
+#define BB_WIDECHAR 1
+
+#include "bb.h"
+#include "bbclient/bb_common.h"
+#include "bbclient/bb_string.h"
+#include "bbclient/bb_time.h"
+
+BB_WARNING_DISABLE(4514) // unreferenced inline function has been removed
+
+#include "bbclient/bb_wrap_stdio.h"
+#if defined(_MSC_VER)
+#include <windows.h>
+#else
+#include <stdint.h>
+#endif
+
+static const wchar_t *s_categoryNames[] = {
+	L"dynamic::category::thing",
+	L"dynamic::monkey::banana",
+};
+
+static const char *s_pathNames[] = {
+	"C:\\Windows\\System32\\user32.dll",
+	"C:\\Windows\\Fonts\\Consola.ttf",
+	"D:\\bin\\wsl-terminal\\vim.exe",
+};
+
+static b32 s_bQuit = false;
+
+static void console_command_handler(const char *text, void *context)
+{
+	(void)context;
+	BB_LOG_A("Console", "^:] %s\n", text);
+	if(!bb_stricmp(text, "quit")) {
+		s_bQuit = true;
+	}
+}
+
+int main(int argc, const char **argv)
+{
+	uint64_t start = bb_current_time_ms();
+	uint32_t categoryIndex = 0;
+	uint32_t pathIndex = 0;
+	(void)argc;
+	(void)argv;
+
+	//bb_init_file_w(L"bbclient.bbox");
+	//BB_INIT(L"bbclient: matt");
+	BB_INIT_WITH_FLAGS(L"bbclient: matt", kBBInitFlag_ConsoleCommands);
+	//BB_INIT_WITH_FLAGS(L"bbclient: matt (no view)", kBBInitFlag_NoOpenView);
+	BB_THREAD_START(L"main thread!");
+	BB_LOG(L"startup", L"bbclient init took %llu ms", bb_current_time_ms() - start);
+
+	BB_SET_INCOMING_CONSOLE_COMMAND_HANDLER(&console_command_handler, NULL);
+
+	BB_LOG(L"test::category::deep", L"this is a __%s__ test at time %zu", L"simple", bb_current_time_ms());
+	BB_WARNING(L"test::other", L"monkey");
+	BB_LOG(L"test::a", L"fred");
+	BB_LOG(L"testa::bob", L"george");
+	BB_ERROR(L"testa", L"chuck");
+	BB_LOG(L"standalone::nested::category", L"standalone::nested::category");
+
+	start = bb_current_time_ms();
+	while(BB_IS_CONNECTED()) {
+		bb_sleep_ms(160);
+		BB_TICK();
+
+		BB_LOG(L"test::category", L"new frame");
+
+		BB_LOG_DYNAMIC(s_pathNames[pathIndex++], 1001, s_categoryNames[categoryIndex++], L"This is a %s test!\n", L"**DYNAMIC**");
+		if(pathIndex >= BB_ARRAYSIZE(s_pathNames)) {
+			pathIndex = 0;
+		}
+		if(categoryIndex >= BB_ARRAYSIZE(s_categoryNames)) {
+			categoryIndex = 0;
+		}
+
+		if(bb_current_time_ms() - start > 300) {
+			break;
+		}
+	}
+
+	while(BB_IS_CONNECTED() && !s_bQuit) {
+		BB_TICK();
+		bb_sleep_ms(50);
+	}
+
+	while(BB_IS_CONNECTED() && !s_bQuit) {
+		BB_TICK();
+		BB_LOG(L"test::frame", L"-----------------------------------------------------");
+		BB_LOG(L"test::spam1", L"some data");
+		BB_LOG(L"test::spam1", L"or other");
+		BB_LOG(L"test::spam1", L"spamming");
+		BB_LOG(L"test::spam1", L"many times");
+		BB_LOG(L"test::spam1", L"in the");
+		BB_LOG(L"test::spam1", L"same frame");
+		BB_LOG(L"test::spam1", L"over and");
+		BB_LOG(L"test::spam1", L"over.");
+		BB_LOG(L"test::spam2", L"some data");
+		BB_LOG(L"test::spam2", L"or other");
+		BB_LOG(L"test::spam2", L"spamming");
+		BB_LOG(L"test::spam2", L"many times");
+		BB_LOG(L"test::spam2", L"in the");
+		BB_LOG(L"test::spam2", L"same frame");
+		BB_LOG(L"test::spam2", L"over and");
+		BB_LOG(L"test::spam2", L"over.");
+		BB_LOG(L"test::spam3", L"some data");
+		BB_LOG(L"test::spam3", L"or other");
+		BB_LOG(L"test::spam3", L"spamming");
+		BB_LOG(L"test::spam3", L"many times");
+		BB_LOG(L"test::spam3", L"in the");
+		BB_LOG(L"test::spam3", L"same frame");
+		BB_LOG(L"test::spam3", L"over and");
+		BB_LOG(L"test::spam3", L"over.");
+		bb_sleep_ms(50);
+		if(bb_current_time_ms() - start > 1000) {
+			break;
+		}
+	}
+
+	BB_SHUTDOWN();
+	return 0;
+}
