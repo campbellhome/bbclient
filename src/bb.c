@@ -73,6 +73,12 @@ static void *s_bb_send_callback_context;
 static bb_incoming_console_command_handler s_bb_console_command_handler;
 static void *s_bb_console_command_context;
 
+typedef struct bbtraceBuffer_s {
+	char packetBuffer[16 * 1024];
+	bb_wchar_t wideBuffer[16 * 1024];
+} bbtraceBuffer_t;
+
+static bb_thread_local bbtraceBuffer_t *s_bb_trace_packet_buffer;
 static bb_thread_local bb_colors_t s_bb_colors;
 void bb_set_color(bb_color_t fg, bb_color_t bg)
 {
@@ -109,15 +115,16 @@ static BB_INLINE const char *bb_wcstombcs(const bb_wchar_t *wstr)
 	return buffer;
 }
 
-static BB_INLINE const char *bb_wcstombcs_inline(const bb_wchar_t *wstr, char *buffer, size_t bufferSize)
+static BB_INLINE const char *bb_wcstombcs_inline(const bb_wchar_t *wstr, char *buffer, size_t bufferSize, size_t *numCharsConverted)
 {
 	buffer[0] = '\0';
 #if BB_USING(BB_COMPILER_MSVC)
-	size_t numCharsConverted;
-	wcstombs_s(&numCharsConverted, buffer, bufferSize, wstr, _TRUNCATE);
+	wcstombs_s(numCharsConverted, buffer, bufferSize, wstr, _TRUNCATE);
 #else
-	wcstombs(buffer, wstr, bufferSize);
-	buffer[bufferSize - 1] = '\0';
+	*numCharsConverted = 1 + wcstombs(buffer, wstr, bufferSize);
+	if(*numCharsConverted) {
+		buffer[*numCharsConverted - 1] = '\0';
+	}
 #endif
 	return buffer;
 }
@@ -257,8 +264,11 @@ void bb_init_w(const bb_wchar_t *applicationName, const bb_wchar_t *sourceApplic
 }
 #endif // #if BB_COMPILE_WIDECHAR
 
-void bb_shutdown(void)
+void bb_shutdown(const char *file, int line)
 {
+	uint32_t bb_path_id = 0;
+	bb_resolve_path_id(file, &bb_path_id, (uint32_t)line);
+	bb_thread_end(bb_path_id, line);
 	if(s_fp) {
 		bb_file_close(s_fp);
 		s_fp = NULL;
@@ -370,6 +380,10 @@ void bb_thread_end(uint32_t pathId, uint32_t line)
 	bb_decoded_packet_t decoded;
 	bb_fill_header(&decoded, kBBPacketType_ThreadEnd, pathId, line);
 	bb_send(&decoded);
+	if(s_bb_trace_packet_buffer) {
+		free(s_bb_trace_packet_buffer);
+		s_bb_trace_packet_buffer = NULL;
+	}
 }
 
 static u32 bb_find_id(const char *text, bb_ids_t *ids)
@@ -512,27 +526,55 @@ static void bb_trace_preformatted(uint32_t pathId, uint32_t line, uint32_t categ
 	}
 }
 
+static void bb_trace_send(bb_decoded_packet_t *decoded, size_t textlen)
+{
+	if(textlen >= kBBSize_LogText) {
+		char *text = decoded->packet.logText.text;
+		size_t preTextSize = text - (char *)decoded;
+		while(textlen >= kBBSize_LogText) {
+			bb_decoded_packet_t partial;
+			memcpy(&partial, decoded, preTextSize);
+			bb_strncpy(partial.packet.logText.text, text, kBBSize_LogText);
+			partial.type = kBBPacketType_LogTextPartial;
+			bb_send(&partial);
+			text += kBBSize_LogText - 1;
+			textlen -= kBBSize_LogText - 1;
+		}
+
+		bb_decoded_packet_t remainder;
+		memcpy(&remainder, decoded, preTextSize);
+		bb_strncpy(remainder.packet.logText.text, text, textlen + 1);
+		bb_send(&remainder);
+	} else {
+		bb_send(decoded);
+	}
+}
+
 static void bb_trace_va(uint32_t pathId, uint32_t line, uint32_t categoryId, bb_log_level_e level, u32 pieInstance, const char *fmt, va_list args)
 {
 	int len, maxLen;
-	bb_decoded_packet_t decoded;
-	bb_trace_partial_end();
-	bb_fill_header(&decoded, kBBPacketType_LogText, pathId, line);
-	len = vsnprintf(decoded.packet.logText.text, sizeof(decoded.packet.logText.text), fmt, args);
-	maxLen = sizeof(decoded.packet.logText.text) - 2;
-	len = (len < 0 || len > maxLen) ? maxLen : len;
-	if(len == 0 || decoded.packet.logText.text[len - 1] != '\n') {
-		decoded.packet.logText.text[len++] = '\n';
+	if(!s_bb_trace_packet_buffer) {
+		s_bb_trace_packet_buffer = malloc(sizeof(*s_bb_trace_packet_buffer));
 	}
-	decoded.packet.logText.text[len] = '\0';
-	decoded.packet.logText.categoryId = categoryId;
-	decoded.packet.logText.level = level;
-	decoded.packet.logText.pieInstance = pieInstance;
-	decoded.packet.logText.colors = s_bb_colors;
+	bb_decoded_packet_t *decoded = (bb_decoded_packet_t *)s_bb_trace_packet_buffer->packetBuffer;
+	size_t textBufferSize = sizeof(s_bb_trace_packet_buffer->packetBuffer) - sizeof(bb_decoded_packet_t) + kBBSize_LogText;
+	bb_trace_partial_end();
+	bb_fill_header(decoded, kBBPacketType_LogText, pathId, line);
+	len = vsnprintf(decoded->packet.logText.text, textBufferSize, fmt, args);
+	maxLen = (int)textBufferSize - 2;
+	len = (len < 0 || len > maxLen) ? maxLen : len;
+	if(len == 0 || decoded->packet.logText.text[len - 1] != '\n') {
+		decoded->packet.logText.text[len++] = '\n';
+	}
+	decoded->packet.logText.text[len] = '\0';
 	if(level == kBBLogLevel_SetColor) {
-		bb_resolve_and_set_colors(decoded.packet.logText.text);
+		bb_resolve_and_set_colors(decoded->packet.logText.text);
 	} else {
-		bb_send(&decoded);
+		decoded->packet.logText.categoryId = categoryId;
+		decoded->packet.logText.level = level;
+		decoded->packet.logText.pieInstance = pieInstance;
+		decoded->packet.logText.colors = s_bb_colors;
+		bb_trace_send(decoded, (size_t)len);
 	}
 }
 
@@ -548,30 +590,36 @@ void bb_trace(uint32_t pathId, uint32_t line, uint32_t categoryId, bb_log_level_
 void bb_trace_va_w(uint32_t pathId, uint32_t line, uint32_t categoryId, bb_log_level_e level, u32 pieInstance, const bb_wchar_t *fmt, va_list args)
 {
 	int len, maxLen;
-	bb_decoded_packet_t decoded;
-	bb_wchar_t wstr[kBBSize_LogText];
+	if(!s_bb_trace_packet_buffer) {
+		s_bb_trace_packet_buffer = malloc(sizeof(*s_bb_trace_packet_buffer));
+	}
+	bb_decoded_packet_t *decoded = (bb_decoded_packet_t *)s_bb_trace_packet_buffer->packetBuffer;
+	size_t textBufferSize = sizeof(s_bb_trace_packet_buffer->packetBuffer) - sizeof(bb_decoded_packet_t) + kBBSize_LogText;
+	bb_wchar_t *wstr = s_bb_trace_packet_buffer->wideBuffer;
+	size_t wstrSize = BB_ARRAYSIZE(s_bb_trace_packet_buffer->wideBuffer);
 	bb_trace_partial_end();
-	bb_fill_header(&decoded, kBBPacketType_LogText, pathId, line);
+	bb_fill_header(decoded, kBBPacketType_LogText, pathId, line);
 #if defined(BB_WIDE_CHAR16) && BB_WIDE_CHAR16
-	len = bb_vswprintf(wstr, kBBSize_LogText, fmt, args);
+	len = bb_vswprintf(wstr, wstrSize, fmt, args);
 #else
-	len = vswprintf(wstr, kBBSize_LogText, fmt, args);
+	len = vswprintf(wstr, wstrSize, fmt, args);
 #endif
-	maxLen = kBBSize_LogText - 2;
+	maxLen = (int)wstrSize - 2;
 	len = (len < 0 || len > maxLen) ? maxLen : len;
 	if(wstr[len - 1] != L'\n') {
 		wstr[len++] = L'\n';
 	}
 	wstr[len] = L'\0';
-	bb_wcstombcs_inline(wstr, decoded.packet.logText.text, sizeof(decoded.packet.logText.text));
-	decoded.packet.logText.categoryId = categoryId;
-	decoded.packet.logText.level = level;
-	decoded.packet.logText.pieInstance = pieInstance;
-	decoded.packet.logText.colors = s_bb_colors;
+	size_t numCharsConverted = 0;
+	bb_wcstombcs_inline(wstr, decoded->packet.logText.text, textBufferSize, &numCharsConverted);
 	if(level == kBBLogLevel_SetColor) {
-		bb_resolve_and_set_colors(decoded.packet.logText.text);
+		bb_resolve_and_set_colors(decoded->packet.logText.text);
 	} else {
-		bb_send(&decoded);
+		decoded->packet.logText.categoryId = categoryId;
+		decoded->packet.logText.level = level;
+		decoded->packet.logText.pieInstance = pieInstance;
+		decoded->packet.logText.colors = s_bb_colors;
+		bb_trace_send(decoded, numCharsConverted);
 	}
 }
 #endif // #if BB_COMPILE_WIDECHAR

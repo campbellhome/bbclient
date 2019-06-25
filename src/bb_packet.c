@@ -158,6 +158,7 @@ b32 bbpacket_deserialize(u8 *buffer, u16 len, bb_decoded_packet_t *decoded)
 	case kBBPacketType_LogText_v2:
 		return bbpacket_serialize_log_text_v2(&ser, decoded);
 
+	case kBBPacketType_LogTextPartial:
 	case kBBPacketType_LogText:
 		return bbpacket_serialize_log_text(&ser, decoded);
 
@@ -221,6 +222,7 @@ u16 bbpacket_serialize(bb_decoded_packet_t *source, u8 *buffer, u16 len)
 		bbpacket_serialize_log_text_v2(&ser, source);
 		break;
 
+	case kBBPacketType_LogTextPartial:
 	case kBBPacketType_LogText:
 		bbpacket_serialize_log_text(&ser, source);
 		break;
