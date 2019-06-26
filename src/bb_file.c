@@ -63,7 +63,7 @@ void bb_file_flush(bb_file_handle_t handle)
 
 #else // #if BB_USING(BB_COMPILER_MSVC)
 
-#include "bb_wrap_stdio.h"
+#include "bbclient/bb_wrap_stdio.h"
 
 bb_file_handle_t bb_file_open_for_write(const char *pathname)
 {
