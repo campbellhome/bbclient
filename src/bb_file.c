@@ -45,7 +45,7 @@ u32 bb_file_size(bb_file_handle_t handle)
 #if BB_USING(BB_PLATFORM_DURANGO)
 	BB_UNUSED(handle);
 	return 0;
-#else // #if BB_USING(BB_PLATFORM_DURANGO)
+#else  // #if BB_USING(BB_PLATFORM_DURANGO)
 	DWORD fileSizeHi = 0;
 	DWORD fileSize = GetFileSize(handle, &fileSizeHi);
 	return fileSize;

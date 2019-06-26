@@ -554,7 +554,7 @@ static void bb_trace_va(uint32_t pathId, uint32_t line, uint32_t categoryId, bb_
 {
 	int len, maxLen;
 	if(!s_bb_trace_packet_buffer) {
-		s_bb_trace_packet_buffer = malloc(sizeof(*s_bb_trace_packet_buffer));
+		s_bb_trace_packet_buffer = (bbtraceBuffer_t *)malloc(sizeof(*s_bb_trace_packet_buffer));
 	}
 	bb_decoded_packet_t *decoded = (bb_decoded_packet_t *)s_bb_trace_packet_buffer->packetBuffer;
 	size_t textBufferSize = sizeof(s_bb_trace_packet_buffer->packetBuffer) - sizeof(bb_decoded_packet_t) + kBBSize_LogText;
@@ -591,7 +591,7 @@ void bb_trace_va_w(uint32_t pathId, uint32_t line, uint32_t categoryId, bb_log_l
 {
 	int len, maxLen;
 	if(!s_bb_trace_packet_buffer) {
-		s_bb_trace_packet_buffer = malloc(sizeof(*s_bb_trace_packet_buffer));
+		s_bb_trace_packet_buffer = (bbtraceBuffer_t *)malloc(sizeof(*s_bb_trace_packet_buffer));
 	}
 	bb_decoded_packet_t *decoded = (bb_decoded_packet_t *)s_bb_trace_packet_buffer->packetBuffer;
 	size_t textBufferSize = sizeof(s_bb_trace_packet_buffer->packetBuffer) - sizeof(bb_decoded_packet_t) + kBBSize_LogText;
