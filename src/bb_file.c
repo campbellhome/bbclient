@@ -42,9 +42,14 @@ u32 bb_file_read(bb_file_handle_t handle, void *buffer, u32 bufferSize)
 
 u32 bb_file_size(bb_file_handle_t handle)
 {
+#if BB_USING(BB_PLATFORM_DURANGO)
+	BB_UNUSED(handle);
+	return 0;
+#else // #if BB_USING(BB_PLATFORM_DURANGO)
 	DWORD fileSizeHi = 0;
 	DWORD fileSize = GetFileSize(handle, &fileSizeHi);
 	return fileSize;
+#endif // #else // #if BB_USING(BB_PLATFORM_DURANGO)
 }
 
 void bb_file_close(bb_file_handle_t handle)
