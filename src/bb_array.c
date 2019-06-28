@@ -16,7 +16,7 @@ BB_WARNING_DISABLE(4710)
 #endif
 
 #if bba_log_allocations || bba_log_failed_allocations
-#include "bb_wrap_stdio.h"
+#include "bbclient/bb_wrap_stdio.h"
 #endif
 
 #if defined(__cplusplus)
