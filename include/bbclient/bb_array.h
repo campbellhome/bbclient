@@ -19,28 +19,12 @@
 #define bba__realloc realloc
 #endif
 
-#if !defined(bba_log_allocations)
-#define bba_log_allocations 0
-#endif
-#if !defined(bba_log_failed_allocations)
-#define bba_log_failed_allocations 0
-#endif
-
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#if bba_log_allocations
+void bba_set_logging(b32 allocs, b32 failedAllocs);
 void bba_log_free(void *p, const char *file, int line);
-#else
-static BB_INLINE void bba_log_free(void *p, const char *file, int line)
-{
-	(void)p;
-	(void)file;
-	(void)line;
-}
-#endif
-
 void *bba__raw_add(void *base, ptrdiff_t data_offset, u32 *count, u32 *allocated, u32 increment, u32 itemsize, b32 clear, b32 reserve_only, const char *file, int line);
 
 #if defined(__cplusplus)
