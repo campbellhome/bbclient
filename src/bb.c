@@ -75,7 +75,9 @@ static void *s_bb_console_command_context;
 
 typedef struct bbtraceBuffer_s {
 	char packetBuffer[16 * 1024];
+#if BB_COMPILE_WIDECHAR
 	bb_wchar_t wideBuffer[16 * 1024];
+#endif
 } bbtraceBuffer_t;
 
 static bb_thread_local bbtraceBuffer_t *s_bb_trace_packet_buffer;
