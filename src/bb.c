@@ -282,6 +282,10 @@ void bb_shutdown(const char *file, int line)
 	bb_critical_section_shutdown(&s_id_cs);
 	bba_free(s_bb_categoryIds);
 	bba_free(s_bb_pathIds);
+	if(s_bb_trace_packet_buffer) {
+		free(s_bb_trace_packet_buffer);
+		s_bb_trace_packet_buffer = NULL;
+	}
 }
 
 int bb_is_connected(void)
