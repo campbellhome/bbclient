@@ -30,6 +30,7 @@ extern "C" {
 typedef char16_t bb_wchar_t;
 #define BB_WCHARS_PASTE(x) u##x
 #else // #if USING(BB_WIDE_CHAR16)
+#include <wchar.h>
 typedef wchar_t bb_wchar_t;
 #define BB_WCHARS_PASTE(x) L##x
 #endif // #else // #if USING(BB_WIDE_CHAR16)
