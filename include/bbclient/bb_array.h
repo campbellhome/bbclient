@@ -24,8 +24,11 @@ extern "C" {
 #endif
 
 void bba_set_logging(b32 allocs, b32 failedAllocs);
-void bba_log_free(void *p, const char *file, int line);
+void bba_log_free(void *p, u32 allocated, u64 bytes, const char *file, int line);
 void *bba__raw_add(void *base, ptrdiff_t data_offset, u32 *count, u32 *allocated, u32 increment, u32 itemsize, b32 clear, b32 reserve_only, const char *file, int line);
+
+extern s64 g_bba_allocatedCount;
+extern s64 g_bba_allocatedBytes;
 
 #if defined(__cplusplus)
 }
@@ -60,8 +63,8 @@ static BB_INLINE U *bba__template_add(T &a, U *, u32 n, b32 clear, b32 reserve_o
 	}
 
 #define bba_clear(a) (a).count = 0
-#define bba_free(a) (((a).data) ? bba_log_free((a).data, __FILE__, __LINE__), bba__free((a).data), (a).data = 0, (a).count = 0, (a).allocated = 0, 0 : 0)
-#define bba_free_from_loc(file, line, a) (((a).data) ? bba_log_free((a).data, (file), (line)), bba__free((a).data), (a).data = 0, (a).count = 0, (a).allocated = 0, 0 : 0)
+#define bba_free(a) (((a).data) ? bba_log_free((a).data, (a).allocated, (a).allocated * sizeof(*((a).data)), __FILE__, __LINE__), bba__free((a).data), (a).data = 0, (a).count = 0, (a).allocated = 0, 0 : 0)
+#define bba_free_from_loc(file, line, a) (((a).data) ? bba_log_free((a).data, (a).allocated, (a).allocated * sizeof(*((a).data)), (file), (line)), bba__free((a).data), (a).data = 0, (a).count = 0, (a).allocated = 0, 0 : 0)
 #define bba_push(a, v)                      \
 	{                                       \
 		if(bba_add_noclear(a, 1) != NULL) { \

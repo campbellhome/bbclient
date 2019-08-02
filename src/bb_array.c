@@ -21,6 +21,9 @@ BB_WARNING_DISABLE(4710)
 extern "C" { // needed to allow inclusion in .cpp unity files
 #endif
 
+s64 g_bba_allocatedCount;
+s64 g_bba_allocatedBytes;
+
 static b32 s_bba_logAllocs;
 static b32 s_bba_logFailedAllocs;
 void bba_set_logging(b32 allocs, b32 failedAllocs)
@@ -29,11 +32,18 @@ void bba_set_logging(b32 allocs, b32 failedAllocs)
 	s_bba_logFailedAllocs = failedAllocs;
 }
 
-void bba_log_free(void *p, const char *file, int line)
+void bba_log_free(void *p, u32 allocated, u64 bytes, const char *file, int line)
 {
+	BB_UNUSED(allocated);
+	BB_UNUSED(bytes);
+#ifdef _MSC_VER
+	InterlockedAdd64(&g_bba_allocatedCount, -1);
+	InterlockedAdd64(&g_bba_allocatedBytes, -(s64)bytes);
+#endif
+
 	if(s_bba_logAllocs) {
 		char buf[256];
-		if(bb_snprintf(buf, sizeof(buf), "%s(%d) : bba_free(0x%p)\n", file, line, p) < 0) {
+		if(bb_snprintf(buf, sizeof(buf), "%s(%d) : bba_free(0x%p) (%" PRIu64 " bytes)\n", file, line, p, bytes) < 0) {
 			buf[sizeof(buf) - 1] = '\0';
 		}
 #if BB_USING(BB_COMPILER_MSVC)
@@ -44,11 +54,21 @@ void bba_log_free(void *p, const char *file, int line)
 	}
 }
 
-static BB_INLINE void bba_log_realloc(u64 oldp, void *newp, u64 size, const char *file, int line)
+static BB_INLINE void bba_log_realloc(u64 oldp, void *newp, u32 allocated, u32 desired, u64 allocatedSize, u64 desiredSize, const char *file, int line)
 {
+	BB_UNUSED(allocated);
+	BB_UNUSED(desired);
+	BB_UNUSED(allocatedSize);
+#ifdef _MSC_VER
+	if(!oldp) {
+		InterlockedAdd64(&g_bba_allocatedCount, 1);
+	}
+	InterlockedAdd64(&g_bba_allocatedBytes, desiredSize - allocatedSize);
+#endif
+
 	if(s_bba_logAllocs) {
 		char buf[256];
-		if(bb_snprintf(buf, sizeof(buf), "%s(%d) : bba_realloc(0x%016.16" PRIX64 ", 0x%p) %" PRIu64 " bytes\n", file, line, oldp, newp, size) < 0) {
+		if(bb_snprintf(buf, sizeof(buf), "%s(%d) : bba_realloc(0x%016.16" PRIX64 ", 0x%p) %" PRIu64 " bytes -> %" PRIu64 " bytes (%" PRIu64 " bytes)\n", file, line, oldp, newp, allocatedSize, desiredSize, desiredSize - allocatedSize) < 0) {
 			buf[sizeof(buf) - 1] = '\0';
 		}
 #if BB_USING(BB_COMPILER_MSVC)
@@ -103,7 +123,7 @@ void *bba__raw_add(void *base, ptrdiff_t data_offset, u32 *count, u32 *allocated
 			void *p = (void *)bba__realloc(arr, itemsize * (u64)desired);
 			if(p) {
 				void *ret = (u8 *)p + itemsize * (u64)*count;
-				bba_log_realloc((u64)arr, p, itemsize * desired, file, line);
+				bba_log_realloc((u64)arr, p, *allocated, desired, itemsize * *allocated, itemsize * desired, file, line);
 				if(clear && !reserve_only) {
 					u32 bytes = itemsize * (desired - *allocated);
 					memset(ret, 0, bytes);
