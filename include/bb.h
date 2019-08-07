@@ -65,6 +65,7 @@ typedef enum {
 	kBBInitFlag_NoOpenView = 0x1,
 	kBBInitFlag_DebugInit = 0x2, // printf/OutputDebugString initial connection logging
 	kBBInitFlag_ConsoleCommands = 0x4,
+	kBBInitFlag_NoDiscovery = 0x8,
 } bb_init_flag_e;
 typedef uint32_t bb_init_flags_t;
 
