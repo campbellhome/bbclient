@@ -123,7 +123,7 @@ void *bba__raw_add(void *base, ptrdiff_t data_offset, u32 *count, u32 *allocated
 			void *p = (void *)bba__realloc(arr, itemsize * (u64)desired);
 			if(p) {
 				void *ret = (u8 *)p + itemsize * (u64)*count;
-				bba_log_realloc((u64)arr, p, *allocated, desired, itemsize * *allocated, itemsize * desired, file, line);
+				bba_log_realloc((u64)arr, p, *allocated, desired, (u64)itemsize * *allocated, (u64)itemsize * desired, file, line);
 				if(clear && !reserve_only) {
 					u32 bytes = itemsize * (desired - *allocated);
 					memset(ret, 0, bytes);
@@ -135,7 +135,7 @@ void *bba__raw_add(void *base, ptrdiff_t data_offset, u32 *count, u32 *allocated
 				}
 				return ret;
 			} else {
-				bba_log_failed_realloc((u64)arr, itemsize * desired, file, line);
+				bba_log_failed_realloc((u64)arr, (u64)itemsize * desired, file, line);
 				return NULL;
 			}
 		} else {
