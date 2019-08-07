@@ -561,18 +561,23 @@ static void bb_trace_va(uint32_t pathId, uint32_t line, uint32_t categoryId, bb_
 	int len, maxLen;
 	if(!s_bb_trace_packet_buffer) {
 		s_bb_trace_packet_buffer = (bbtraceBuffer_t *)malloc(sizeof(*s_bb_trace_packet_buffer));
+		if(!s_bb_trace_packet_buffer) {
+			return;
+		}
 	}
 	bb_decoded_packet_t *decoded = (bb_decoded_packet_t *)s_bb_trace_packet_buffer->packetBuffer;
-	size_t textBufferSize = sizeof(s_bb_trace_packet_buffer->packetBuffer) - sizeof(bb_decoded_packet_t) + kBBSize_LogText;
+	size_t textOffset = decoded->packet.logText.text - (char *)decoded;
+	size_t textBufferSize = sizeof(s_bb_trace_packet_buffer->packetBuffer) - textOffset;
+	char *textStart = s_bb_trace_packet_buffer->packetBuffer + sizeof(s_bb_trace_packet_buffer->packetBuffer) - textBufferSize;
 	bb_trace_partial_end();
 	bb_fill_header(decoded, kBBPacketType_LogText, pathId, line);
-	len = vsnprintf(decoded->packet.logText.text, textBufferSize, fmt, args);
+	len = vsnprintf(textStart, textBufferSize, fmt, args);
 	maxLen = (int)textBufferSize - 2;
 	len = (len < 0 || len > maxLen) ? maxLen : len;
-	if(len == 0 || decoded->packet.logText.text[len - 1] != '\n') {
-		decoded->packet.logText.text[len++] = '\n';
+	if(len == 0 || textStart[len - 1] != '\n') {
+		textStart[len++] = '\n';
 	}
-	decoded->packet.logText.text[len] = '\0';
+	textStart[len] = '\0';
 	if(level == kBBLogLevel_SetColor) {
 		bb_resolve_and_set_colors(decoded->packet.logText.text);
 	} else {
@@ -598,6 +603,9 @@ void bb_trace_va_w(uint32_t pathId, uint32_t line, uint32_t categoryId, bb_log_l
 	int len, maxLen;
 	if(!s_bb_trace_packet_buffer) {
 		s_bb_trace_packet_buffer = (bbtraceBuffer_t *)malloc(sizeof(*s_bb_trace_packet_buffer));
+		if(!s_bb_trace_packet_buffer) {
+			return;
+		}
 	}
 	bb_decoded_packet_t *decoded = (bb_decoded_packet_t *)s_bb_trace_packet_buffer->packetBuffer;
 	size_t textBufferSize = sizeof(s_bb_trace_packet_buffer->packetBuffer) - sizeof(bb_decoded_packet_t) + kBBSize_LogText;
