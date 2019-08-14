@@ -24,6 +24,10 @@ int bb_strnicmp(const char *s1, const char *s2, size_t len);
 int bb_stricmp(const char *s1, const char *s2);
 char *bb_strdup(const char *s);
 
+#if BB_COMPILE_WIDECHAR
+size_t bb_wstrncpy(bb_wchar_t *dest, const bb_wchar_t *src, size_t destSize);
+#endif // #if BB_COMPILE_WIDECHAR
+
 #if defined(__cplusplus)
 }
 #endif

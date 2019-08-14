@@ -44,6 +44,33 @@ size_t bb_strncpy(char *dest, const char *src, size_t destSize)
 	return len;
 }
 
+#if BB_COMPILE_WIDECHAR
+size_t bb_wstrncpy(bb_wchar_t *dest, const bb_wchar_t *src, size_t destSize)
+{
+	//size_t len = strlen(src);
+	const bb_wchar_t *s = src;
+	bb_wchar_t *c;
+	size_t len = 0;
+	size_t n;
+	while(*s++) {
+		++len;
+	}
+
+	len = (len < destSize) ? len : destSize - 1;
+
+	//memcpy(dest, src, len);
+	n = len;
+	c = dest;
+	s = src;
+	while(n--) {
+		*c++ = *s++;
+	}
+
+	dest[len] = '\0';
+	return len;
+}
+#endif // #if BB_COMPILE_WIDECHAR
+
 char bb_tolower(char c)
 {
 	return (c >= 'A' && c <= 'Z') ? c - 'A' + 'a' : c;

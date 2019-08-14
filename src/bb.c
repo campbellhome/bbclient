@@ -515,23 +515,6 @@ static void bb_resolve_and_set_colors(const char *str)
 	bb_set_color(fgColor, bgColor);
 }
 
-static void bb_trace_preformatted(uint32_t pathId, uint32_t line, uint32_t categoryId, bb_log_level_e level, u32 pieInstance, const char *preformatted)
-{
-	bb_decoded_packet_t decoded;
-	bb_trace_partial_end();
-	bb_fill_header(&decoded, kBBPacketType_LogText, pathId, line);
-	bb_strncpy(decoded.packet.logText.text, preformatted, sizeof(decoded.packet.logText.text));
-	decoded.packet.logText.categoryId = categoryId;
-	decoded.packet.logText.level = level;
-	decoded.packet.logText.pieInstance = pieInstance;
-	decoded.packet.logText.colors = s_bb_colors;
-	if(level == kBBLogLevel_SetColor) {
-		bb_resolve_and_set_colors(decoded.packet.logText.text);
-	} else {
-		bb_send(&decoded);
-	}
-}
-
 static void bb_trace_send(bb_decoded_packet_t *decoded, size_t textlen)
 {
 	if(textlen >= kBBSize_LogText) {
@@ -556,37 +539,57 @@ static void bb_trace_send(bb_decoded_packet_t *decoded, size_t textlen)
 	}
 }
 
-static void bb_trace_va(uint32_t pathId, uint32_t line, uint32_t categoryId, bb_log_level_e level, u32 pieInstance, const char *fmt, va_list args)
+typedef struct bb_trace_builder_s {
+	bb_decoded_packet_t *decoded;
+	size_t textOffset;
+	size_t textBufferSize;
+	char *textStart;
+} bb_trace_builder_t;
+
+static b32 bb_trace_begin(bb_trace_builder_t *builder, uint32_t pathId, uint32_t line)
 {
-	int len, maxLen;
 	if(!s_bb_trace_packet_buffer) {
 		s_bb_trace_packet_buffer = (bbtraceBuffer_t *)malloc(sizeof(*s_bb_trace_packet_buffer));
 		if(!s_bb_trace_packet_buffer) {
-			return;
+			return false;
 		}
 	}
-	bb_decoded_packet_t *decoded = (bb_decoded_packet_t *)s_bb_trace_packet_buffer->packetBuffer;
-	size_t textOffset = decoded->packet.logText.text - (char *)decoded;
-	size_t textBufferSize = sizeof(s_bb_trace_packet_buffer->packetBuffer) - textOffset;
-	char *textStart = s_bb_trace_packet_buffer->packetBuffer + sizeof(s_bb_trace_packet_buffer->packetBuffer) - textBufferSize;
+	builder->decoded = (bb_decoded_packet_t *)s_bb_trace_packet_buffer->packetBuffer;
+	builder->textOffset = builder->decoded->packet.logText.text - (char *)builder->decoded;
+	builder->textBufferSize = sizeof(s_bb_trace_packet_buffer->packetBuffer) - builder->textOffset;
+	builder->textStart = s_bb_trace_packet_buffer->packetBuffer + sizeof(s_bb_trace_packet_buffer->packetBuffer) - builder->textBufferSize;
 	bb_trace_partial_end();
-	bb_fill_header(decoded, kBBPacketType_LogText, pathId, line);
-	len = vsnprintf(textStart, textBufferSize, fmt, args);
-	maxLen = (int)textBufferSize - 2;
+	bb_fill_header(builder->decoded, kBBPacketType_LogText, pathId, line);
+	return true;
+}
+
+static void bb_trace_end(bb_trace_builder_t *builder, int len, uint32_t categoryId, bb_log_level_e level, u32 pieInstance)
+{
+	int maxLen = (int)builder->textBufferSize - 2;
 	len = (len < 0 || len > maxLen) ? maxLen : len;
-	if(len == 0 || textStart[len - 1] != '\n') {
-		textStart[len++] = '\n';
+	if(len == 0 || builder->textStart[len - 1] != '\n') {
+		builder->textStart[len++] = '\n';
 	}
-	textStart[len] = '\0';
+	builder->textStart[len] = '\0';
 	if(level == kBBLogLevel_SetColor) {
-		bb_resolve_and_set_colors(decoded->packet.logText.text);
+		bb_resolve_and_set_colors(builder->decoded->packet.logText.text);
 	} else {
-		decoded->packet.logText.categoryId = categoryId;
-		decoded->packet.logText.level = level;
-		decoded->packet.logText.pieInstance = pieInstance;
-		decoded->packet.logText.colors = s_bb_colors;
-		bb_trace_send(decoded, (size_t)len);
+		builder->decoded->packet.logText.categoryId = categoryId;
+		builder->decoded->packet.logText.level = level;
+		builder->decoded->packet.logText.pieInstance = pieInstance;
+		builder->decoded->packet.logText.colors = s_bb_colors;
+		bb_trace_send(builder->decoded, (size_t)len);
 	}
+}
+
+static void bb_trace_va(uint32_t pathId, uint32_t line, uint32_t categoryId, bb_log_level_e level, u32 pieInstance, const char *fmt, va_list args)
+{
+	bb_trace_builder_t builder = { BB_EMPTY_INITIALIZER };
+	if(!bb_trace_begin(&builder, pathId, line)) {
+		return;
+	}
+	int len = vsnprintf(builder.textStart, builder.textBufferSize, fmt, args);
+	bb_trace_end(&builder, len, categoryId, level, pieInstance);
 }
 
 void bb_trace(uint32_t pathId, uint32_t line, uint32_t categoryId, bb_log_level_e level, u32 pieInstance, const char *fmt, ...)
@@ -598,43 +601,63 @@ void bb_trace(uint32_t pathId, uint32_t line, uint32_t categoryId, bb_log_level_
 }
 
 #if BB_COMPILE_WIDECHAR
-void bb_trace_va_w(uint32_t pathId, uint32_t line, uint32_t categoryId, bb_log_level_e level, u32 pieInstance, const bb_wchar_t *fmt, va_list args)
+typedef struct bb_trace_builder_w_s {
+	bb_decoded_packet_t *decoded;
+	size_t textBufferSize;
+	size_t wstrSize;
+	bb_wchar_t *wstr;
+} bb_trace_builder_w_t;
+
+static b32 bb_trace_begin_w(bb_trace_builder_w_t *builder, uint32_t pathId, uint32_t line)
 {
-	int len, maxLen;
 	if(!s_bb_trace_packet_buffer) {
 		s_bb_trace_packet_buffer = (bbtraceBuffer_t *)malloc(sizeof(*s_bb_trace_packet_buffer));
 		if(!s_bb_trace_packet_buffer) {
-			return;
+			return false;
 		}
 	}
-	bb_decoded_packet_t *decoded = (bb_decoded_packet_t *)s_bb_trace_packet_buffer->packetBuffer;
-	size_t textBufferSize = sizeof(s_bb_trace_packet_buffer->packetBuffer) - sizeof(bb_decoded_packet_t) + kBBSize_LogText;
-	bb_wchar_t *wstr = s_bb_trace_packet_buffer->wideBuffer;
-	size_t wstrSize = BB_ARRAYSIZE(s_bb_trace_packet_buffer->wideBuffer);
+	builder->decoded = (bb_decoded_packet_t *)s_bb_trace_packet_buffer->packetBuffer;
+	builder->textBufferSize = sizeof(s_bb_trace_packet_buffer->packetBuffer) - sizeof(bb_decoded_packet_t) + kBBSize_LogText;
+	builder->wstr = s_bb_trace_packet_buffer->wideBuffer;
+	builder->wstrSize = BB_ARRAYSIZE(s_bb_trace_packet_buffer->wideBuffer);
 	bb_trace_partial_end();
-	bb_fill_header(decoded, kBBPacketType_LogText, pathId, line);
-#if defined(BB_WIDE_CHAR16) && BB_WIDE_CHAR16
-	len = bb_vswprintf(wstr, wstrSize, fmt, args);
-#else
-	len = vswprintf(wstr, wstrSize, fmt, args);
-#endif
-	maxLen = (int)wstrSize - 2;
+	bb_fill_header(builder->decoded, kBBPacketType_LogText, pathId, line);
+	return true;
+}
+
+static void bb_trace_end_w(bb_trace_builder_w_t *builder, int len, uint32_t categoryId, bb_log_level_e level, u32 pieInstance)
+{
+	int maxLen = (int)builder->wstrSize - 2;
 	len = (len < 0 || len > maxLen) ? maxLen : len;
-	if(wstr[len - 1] != L'\n') {
-		wstr[len++] = L'\n';
+	if(builder->wstr[len - 1] != L'\n') {
+		builder->wstr[len++] = L'\n';
 	}
-	wstr[len] = L'\0';
+	builder->wstr[len] = L'\0';
 	size_t numCharsConverted = 0;
-	bb_wcstombcs_inline(wstr, decoded->packet.logText.text, textBufferSize, &numCharsConverted);
+	bb_wcstombcs_inline(builder->wstr, builder->decoded->packet.logText.text, builder->textBufferSize, &numCharsConverted);
 	if(level == kBBLogLevel_SetColor) {
-		bb_resolve_and_set_colors(decoded->packet.logText.text);
+		bb_resolve_and_set_colors(builder->decoded->packet.logText.text);
 	} else {
-		decoded->packet.logText.categoryId = categoryId;
-		decoded->packet.logText.level = level;
-		decoded->packet.logText.pieInstance = pieInstance;
-		decoded->packet.logText.colors = s_bb_colors;
-		bb_trace_send(decoded, numCharsConverted);
+		builder->decoded->packet.logText.categoryId = categoryId;
+		builder->decoded->packet.logText.level = level;
+		builder->decoded->packet.logText.pieInstance = pieInstance;
+		builder->decoded->packet.logText.colors = s_bb_colors;
+		bb_trace_send(builder->decoded, numCharsConverted);
 	}
+}
+
+void bb_trace_va_w(uint32_t pathId, uint32_t line, uint32_t categoryId, bb_log_level_e level, u32 pieInstance, const bb_wchar_t *fmt, va_list args)
+{
+	bb_trace_builder_w_t builder = { BB_EMPTY_INITIALIZER };
+	if(!bb_trace_begin_w(&builder, pathId, line)) {
+		return;
+	}
+#if defined(BB_WIDE_CHAR16) && BB_WIDE_CHAR16
+	int len = bb_vswprintf(builder.wstr, builder.wstrSize, fmt, args);
+#else
+	int len = vswprintf(builder.wstr, builder.wstrSize, fmt, args);
+#endif
+	bb_trace_end_w(&builder, len, categoryId, level, pieInstance);
 }
 #endif // #if BB_COMPILE_WIDECHAR
 
@@ -664,7 +687,13 @@ void bb_trace_dynamic_preformatted(const char *path, uint32_t line, const char *
 	uint32_t pathId = 0;
 	uint32_t categoryId = 0;
 	bb_resolve_ids(path, category, &pathId, &categoryId, line);
-	bb_trace_preformatted(pathId, line, categoryId, level, pieInstance, preformatted);
+
+	bb_trace_builder_t builder = { BB_EMPTY_INITIALIZER };
+	if(!bb_trace_begin(&builder, pathId, line)) {
+		return;
+	}
+	int len = (int)bb_strncpy(builder.textStart, preformatted, builder.textBufferSize);
+	bb_trace_end(&builder, len, categoryId, level, pieInstance);
 }
 
 #if BB_COMPILE_WIDECHAR
@@ -683,10 +712,20 @@ void bb_trace_dynamic_w(const char *path, uint32_t line, const bb_wchar_t *categ
 #if BB_COMPILE_WIDECHAR
 void bb_trace_dynamic_preformatted_w(const char *path, uint32_t line, const bb_wchar_t *category, bb_log_level_e level, u32 pieInstance, const bb_wchar_t *preformatted)
 {
+#if defined(BB_WIDE_CHAR16) && BB_WIDE_CHAR16
+	bb_trace_dynamic_w(path, line, category, level, pieInstance, L"%s", preformatted);
+#else // #if defined(BB_WIDE_CHAR16) && BB_WIDE_CHAR16
 	uint32_t pathId = 0;
 	uint32_t categoryId = 0;
 	bb_resolve_ids_w(path, category, &pathId, &categoryId, line);
-	bb_trace_preformatted(pathId, line, categoryId, level, pieInstance, bb_wcstombcs(preformatted));
+
+	bb_trace_builder_w_t builder = { BB_EMPTY_INITIALIZER };
+	if(!bb_trace_begin_w(&builder, pathId, line)) {
+		return;
+	}
+	int len = (int)bb_wstrncpy(builder.wstr, preformatted, builder.wstrSize);
+	bb_trace_end_w(&builder, len, categoryId, level, pieInstance);
+#endif // #else // #if defined(BB_WIDE_CHAR16) && BB_WIDE_CHAR16
 }
 #endif // #if BB_COMPILE_WIDECHAR
 
