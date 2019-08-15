@@ -506,10 +506,10 @@ static void bb_resolve_and_set_colors(const char *str)
 	bb_color_t bgColor = kBBColor_Default;
 	bb_color_t fgColor = kBBColor_Default;
 	size_t len = strlen(str);
-	if(len == 8) {
+	if(len >= 8) {
 		fgColor = bb_resolve_color_str(str);
 		bgColor = bb_resolve_color_str(str + 4);
-	} else if(len == 4) {
+	} else if(len >= 4) {
 		fgColor = bb_resolve_color_str(str);
 	}
 	bb_set_color(fgColor, bgColor);
@@ -714,7 +714,7 @@ void bb_trace_dynamic_preformatted_w(const char *path, uint32_t line, const bb_w
 {
 #if defined(BB_WIDE_CHAR16) && BB_WIDE_CHAR16
 	bb_trace_dynamic_w(path, line, category, level, pieInstance, TEXT("%s"), preformatted);
-#else // #if defined(BB_WIDE_CHAR16) && BB_WIDE_CHAR16
+#else  // #if defined(BB_WIDE_CHAR16) && BB_WIDE_CHAR16
 	uint32_t pathId = 0;
 	uint32_t categoryId = 0;
 	bb_resolve_ids_w(path, category, &pathId, &categoryId, line);
