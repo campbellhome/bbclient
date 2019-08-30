@@ -71,7 +71,7 @@ b32 bbserialize_remaining_text_(bb_serialize_t *ser, char *data, size_t dataSize
 	}
 }
 
-b32 bbserialize_buffer(bb_serialize_t *ser, void *data, u16 len)
+b32 bbserialize_buffer(bb_serialize_t *ser, void *data, u32 len)
 {
 	b32 reading;
 	void *pCursor;
