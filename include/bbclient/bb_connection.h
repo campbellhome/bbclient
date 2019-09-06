@@ -36,7 +36,7 @@ typedef struct bb_connection_s {
 	u32 flags;
 	bb_critical_section cs;
 	bb_connection_state_e state;
-	u8 pad[4];
+	u32 connectRetries;
 } bb_connection_t;
 
 void bbcon_init(bb_connection_t *con);

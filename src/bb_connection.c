@@ -26,6 +26,7 @@ void bbcon_init(bb_connection_t *con)
 	con->prevSendTime = 0;
 	con->flags = 0;
 	con->state = kBBConnection_NotConnected;
+	con->connectRetries = 5;
 }
 
 void bbcon_shutdown(bb_connection_t *con)
@@ -42,7 +43,6 @@ void bbcon_reset(bb_connection_t *con)
 
 b32 bbcon_connect_client(bb_connection_t *con, u32 remoteAddr, u16 remotePort)
 {
-	int i;
 	char ipport[32];
 	b32 bConnected = false;
 	bb_socket testSocket;
@@ -61,9 +61,9 @@ b32 bbcon_connect_client(bb_connection_t *con, u32 remoteAddr, u16 remotePort)
 	bb_format_ipport(ipport, sizeof(ipport), remoteAddr, remotePort);
 	bb_log("BlackBox client trying to connect to %s", ipport);
 
-	for(i = 0; i < 5; ++i) {
+	for(u32 i = 0; i < con->connectRetries; ++i) {
 		int ret;
-		bb_log("BlackBox client trying to connect (attempt %d)...", i);
+		bb_log("BlackBox client trying to connect (attempt %u)...", i);
 		ret = connect(testSocket, (struct sockaddr *)&sin, sizeof(sin));
 		if(ret == BB_SOCKET_ERROR) {
 			bb_error("BlackBox client connect failed");
