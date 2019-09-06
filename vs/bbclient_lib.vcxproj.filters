@@ -78,6 +78,9 @@
     <ClInclude Include="..\include\bbclient\bb_defines.h">
       <Filter>Header Files\bbclient</Filter>
     </ClInclude>
+    <ClInclude Include="..\include\bbclient\bb_socket_errors.h">
+      <Filter>Header Files\bbclient</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\bb.c">
@@ -123,6 +126,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\src\bb_time.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\bb_socket_errors.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

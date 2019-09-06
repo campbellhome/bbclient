@@ -8,13 +8,11 @@
 #include "bbclient/bb_connection.h"
 #include "bbclient/bb_log.h"
 #include "bbclient/bb_packet.h"
+#include "bbclient/bb_socket_errors.h"
 #include "bbclient/bb_time.h"
 #include <string.h> // for memset
 
 enum {
-	kBBCon_Client = 1 << 0,
-	kBBCon_Server = 1 << 1,
-
 	kBBCon_SendIntervalMillis = 500,
 };
 
@@ -26,7 +24,9 @@ void bbcon_init(bb_connection_t *con)
 	con->prevSendTime = 0;
 	con->flags = 0;
 	con->state = kBBConnection_NotConnected;
-	con->connectRetries = 5;
+	if(!con->connectTimeoutInterval) {
+		con->connectTimeoutInterval = 10000;
+	}
 }
 
 void bbcon_shutdown(bb_connection_t *con)
@@ -41,7 +41,7 @@ void bbcon_reset(bb_connection_t *con)
 	bbcon_init(con);
 }
 
-b32 bbcon_connect_client(bb_connection_t *con, u32 remoteAddr, u16 remotePort)
+b32 bbcon_connect_client_async(bb_connection_t *con, u32 remoteAddr, u16 remotePort)
 {
 	char ipport[32];
 	b32 bConnected = false;
@@ -61,12 +61,106 @@ b32 bbcon_connect_client(bb_connection_t *con, u32 remoteAddr, u16 remotePort)
 	bb_format_ipport(ipport, sizeof(ipport), remoteAddr, remotePort);
 	bb_log("BlackBox client trying to connect to %s", ipport);
 
-	for(u32 i = 0; i < con->connectRetries; ++i) {
+	bbnet_socket_nodelay(testSocket, true);
+	bbnet_socket_nonblocking(testSocket, true);
+
+	int ret;
+	bb_log("BlackBox client trying to async connect...");
+	ret = connect(testSocket, (struct sockaddr *)&sin, sizeof(sin));
+	if(ret == BB_SOCKET_ERROR) {
+		int err = BBNET_ERRNO;
+		if(err == BBNET_EWOULDBLOCK || err == BBNET_EINPROGRESS) {
+			bb_log("BlackBox client connecting async");
+			con->socket = testSocket;
+			con->flags |= kBBCon_Client;
+			con->state = kBBConnection_Connecting;
+			con->connectTimeoutTime = bb_current_time_ms() + con->connectTimeoutInterval;
+			return true;
+		} else {
+			bb_error("BlackBox client async connect failed with errno %d (%s)", err, bbnet_error_to_string(err));
+		}
+	} else {
+		bConnected = true;
+	}
+
+	if(!bConnected) {
+		BB_CLOSE(testSocket);
+		return false;
+	}
+
+	bb_log("BlackBox client connected");
+
+	// We're connected - send an initial packet and flush to ensure the packet is sent
+	con->socket = testSocket;
+	con->flags |= kBBCon_Client;
+	con->state = kBBConnection_Connected;
+	//Send( NULL );
+	bbcon_flush(con);
+
+	return true;
+}
+
+b32 bbcon_tick_connecting(bb_connection_t *con)
+{
+	BB_TIMEVAL tv = { BB_EMPTY_INITIALIZER };
+	tv.tv_usec = 1000; // 1 millisecond
+
+	fd_set set;
+	FD_ZERO(&set);
+	BB_FD_SET(con->socket, &set);
+
+	bb_log("BlackBox client connecting tick");
+	int ret = select((int)con->socket + 1, 0, &set, 0, &tv);
+	int err = (ret == BB_SOCKET_ERROR) ? BBNET_ERRNO : 0;
+	if(err == BBNET_EWOULDBLOCK) {
+		err = 0;
+	}
+	if(ret == 1) {
+		bb_log("BlackBox client connected");
+		con->state = kBBConnection_Connected;
+		bbcon_flush(con);
+		return true;
+	} else if(err) {
+		bb_error("bbcon_tick_connecting failed with errno %d (%s)", err, bbnet_error_to_string(err));
+		bbcon_disconnect(con);
+		return false;
+	} else {
+		u64 now = bb_current_time_ms();
+		if(now >= con->connectTimeoutTime) {
+			bb_error("bbcon_tick_connecting failed - timed out waiting to connect");
+			bbcon_disconnect(con);
+		}
+		return false;
+	}
+}
+
+b32 bbcon_connect_client(bb_connection_t *con, u32 remoteAddr, u16 remotePort, u32 retries)
+{
+	char ipport[32];
+	b32 bConnected = false;
+	bb_socket testSocket;
+	struct sockaddr_in sin;
+	bbcon_reset(con);
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_port = htons(remotePort);
+	BB_S_ADDR_UNION(sin) = htonl(remoteAddr);
+	testSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if(testSocket == BB_INVALID_SOCKET) {
+		bb_error("bbcon_connect_client failed - could create socket");
+		return false;
+	}
+
+	bb_format_ipport(ipport, sizeof(ipport), remoteAddr, remotePort);
+	bb_log("BlackBox client trying to connect to %s", ipport);
+
+	for(u32 i = 0; i < retries; ++i) {
 		int ret;
 		bb_log("BlackBox client trying to connect (attempt %u)...", i);
 		ret = connect(testSocket, (struct sockaddr *)&sin, sizeof(sin));
 		if(ret == BB_SOCKET_ERROR) {
-			bb_error("BlackBox client connect failed");
+			int err = BBNET_ERRNO;
+			bb_error("BlackBox client connect failed with errno %d (%s)", err, bbnet_error_to_string(err));
 		} else {
 			bConnected = true;
 			break;
@@ -146,12 +240,12 @@ b32 bbcon_connect_server(bb_connection_t *con, bb_socket testSocket, u32 localAd
 	bbnet_socket_nonblocking(testSocket, true);
 	con->socket = testSocket;
 	con->state = kBBConnection_Listening;
-	con->listenTimeout = bb_current_time_ms() + 10000;
+	con->connectTimeoutTime = bb_current_time_ms() + con->connectTimeoutInterval;
 
 	return true;
 }
 
-b32 bbcon_tick_connecting(bb_connection_t *con)
+b32 bbcon_tick_listening(bb_connection_t *con)
 {
 	BB_TIMEVAL tv;
 	fd_set set;
@@ -168,7 +262,7 @@ b32 bbcon_tick_connecting(bb_connection_t *con)
 	// Now wait for the client to connect
 	if(1 != select((int)con->socket + 1, &set, 0, 0, &tv)) {
 		u64 now = bb_current_time_ms();
-		if(now >= con->listenTimeout) {
+		if(now >= con->connectTimeoutTime) {
 			bb_error("bbcon_connect_server failed - timed out waiting for client to connect");
 			bbcon_disconnect(con);
 		}
@@ -198,12 +292,17 @@ b32 bbcon_tick_connecting(bb_connection_t *con)
 
 b32 bbcon_is_connecting(const bb_connection_t *con)
 {
+	return con->socket != BB_INVALID_SOCKET && con->state == kBBConnection_Connecting;
+}
+
+b32 bbcon_is_listening(const bb_connection_t *con)
+{
 	return con->socket != BB_INVALID_SOCKET && con->state == kBBConnection_Listening;
 }
 
 b32 bbcon_is_connected(const bb_connection_t *con)
 {
-	return con->socket != BB_INVALID_SOCKET && con->state != kBBConnection_Listening;
+	return con->socket != BB_INVALID_SOCKET && con->state != kBBConnection_Listening && con->state != kBBConnection_Connecting;
 }
 
 void bbcon_disconnect(bb_connection_t *con)
@@ -234,8 +333,9 @@ static void bbcon_flush_no_lock(bb_connection_t *con, b32 retry)
 		ret = select((int)con->socket + 1, 0, &set, 0, &tv);
 		//bb_log( "Flush select ret:%d", ret );
 
-		if(ret == BB_INVALID_SOCKET) {
-			bb_log("bbcon_flush: disconnected during select");
+		if(ret == BB_SOCKET_ERROR) {
+			int err = BBNET_ERRNO;
+			bb_log("bbcon_flush: disconnected during select with errno %d (%s)", err, bbnet_error_to_string(err));
 			bbcon_disconnect(con);
 			break;
 		}
@@ -254,7 +354,8 @@ static void bbcon_flush_no_lock(bb_connection_t *con, b32 retry)
 
 		ret = send(con->socket, (const char *)(con->sendBuffer + nSendCursor), (int)(con->sendCursor - nSendCursor), 0);
 		if(ret == BB_SOCKET_ERROR) {
-			bb_log("bbcon_flush: disconnected during send");
+			int err = BBNET_ERRNO;
+			bb_log("bbcon_flush: disconnected during send with errno %d (%s)", err, bbnet_error_to_string(err));
 			bbcon_disconnect(con);
 			break;
 		}
@@ -421,8 +522,9 @@ static void bbcon_receive(bb_connection_t *con)
 
 	ret = select((int)con->socket + 1, &set, 0, 0, &tv);
 	if(ret != 1) {
-		if(ret == -1) {
-			bb_error("bbcon_receive: disconnected during select");
+		if(ret == BB_SOCKET_ERROR) {
+			int err = BBNET_ERRNO;
+			bb_error("bbcon_receive: disconnected during select with errno %d (%s)", err, bbnet_error_to_string(err));
 			bbcon_disconnect(con);
 		}
 		//bb_log( "select returned %d", ret );
@@ -433,7 +535,8 @@ static void bbcon_receive(bb_connection_t *con)
 		int nBytesReceived = recv(con->socket, (char *)(con->recvBuffer + con->recvCursor), (int)nBytesAvailable, 0);
 		if(nBytesReceived <= 0) {
 			if(nBytesAvailable > 0) {
-				bb_error("bbcon_receive: disconnected during recv");
+				int err = BBNET_ERRNO;
+				bb_error("bbcon_receive: disconnected during recv with errno %d (%s)", err, bbnet_error_to_string(err));
 				bbcon_disconnect(con);
 			}
 			return;

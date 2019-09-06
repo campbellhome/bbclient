@@ -19,37 +19,46 @@ typedef struct bb_decoded_packet_s bb_decoded_packet_t;
 typedef enum {
 	kBBConnection_NotConnected,
 	kBBConnection_Listening,
+	kBBConnection_Connecting,
 	kBBConnection_Connected,
 	kBBConnection_Count
 } bb_connection_state_e;
+
+typedef enum {
+	kBBCon_Client = 1 << 0, // internal use only
+	kBBCon_Server = 1 << 1, // internal use only
+} bb_connection_flag_e;
 
 // post-discovery connection
 typedef struct bb_connection_s {
 	bb_socket socket;
 	u8 sendBuffer[8192];
 	u8 recvBuffer[32768];
+	bb_critical_section cs;
 	u64 prevSendTime;
-	u64 listenTimeout;
+	u64 connectTimeoutTime;
+	u32 connectTimeoutInterval;
 	u32 sendCursor;
 	u32 recvCursor;
 	u32 decodeCursor;
 	u32 flags;
-	bb_critical_section cs;
 	bb_connection_state_e state;
-	u32 connectRetries;
 } bb_connection_t;
 
 void bbcon_init(bb_connection_t *con);
 void bbcon_shutdown(bb_connection_t *con);
 void bbcon_reset(bb_connection_t *con);
 
-b32 bbcon_connect_client(bb_connection_t *con, u32 remoteAddr, u16 remotePort);
+b32 bbcon_connect_client_async(bb_connection_t *con, u32 remoteAddr, u16 remotePort);
+b32 bbcon_connect_client(bb_connection_t *con, u32 remoteAddr, u16 remotePort, u32 retries);
+b32 bbcon_tick_connecting(bb_connection_t *con);
+b32 bbcon_is_connecting(const bb_connection_t *con);
 
 bb_socket bbcon_init_server(u32 *localIp, u16 *localPort);
 b32 bbcon_connect_server(bb_connection_t *con, bb_socket testSocket, u32 localAddr, u16 localPort);
-b32 bbcon_tick_connecting(bb_connection_t *con);
+b32 bbcon_tick_listening(bb_connection_t *con);
+b32 bbcon_is_listening(const bb_connection_t *con);
 
-b32 bbcon_is_connecting(const bb_connection_t *con);
 b32 bbcon_is_connected(const bb_connection_t *con);
 void bbcon_disconnect(bb_connection_t *con);
 

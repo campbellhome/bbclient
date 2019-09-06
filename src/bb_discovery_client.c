@@ -9,6 +9,7 @@
 #include "bbclient/bb_discovery_packet.h"
 #include "bbclient/bb_log.h"
 #include "bbclient/bb_packet.h"
+#include "bbclient/bb_socket_errors.h"
 #include "bbclient/bb_sockets.h"
 #include "bbclient/bb_string.h"
 #include "bbclient/bb_time.h"
@@ -52,12 +53,12 @@ static b32 bb_discovery_send_request(bb_socket discoverySocket, bb_discovery_pac
 
 	nBytesSent = sendto(discoverySocket, (const char *)buf, serializedLen, 0, (struct sockaddr *)&sin, sizeof(sin));
 	if(nBytesSent < 0) {
-		int err = BB_ERRNO;
-		bb_error("Failed to send discovery request to %s - err %d",
+		int err = BBNET_ERRNO;
+		bb_error("Failed to send discovery request to %s - err %d (%s)",
 		         bb_format_ipport(ipport, sizeof(ipport),
 		                          ntohl(BB_S_ADDR_UNION(sin)),
 		                          ntohs(sin.sin_port)),
-		         err);
+		         err, bbnet_error_to_string(err));
 	} else {
 		bb_log("Sent discovery request of %d bytes to %s",
 		       nBytesSent,

@@ -44,7 +44,7 @@
 #define BB_SELECT select
 #define BB_SIN_SIZE int
 #define BB_SOCKET_ERROR SOCKET_ERROR
-#define BB_ERRNO WSAGetLastError()
+#define BBNET_ERRNO WSAGetLastError()
 typedef SOCKET bb_socket;
 typedef int bb_recvfrom_sin_size;
 
@@ -75,7 +75,7 @@ typedef int bb_recvfrom_sin_size;
 #define BB_SELECT select
 #define BB_SIN_SIZE int
 #define BB_SOCKET_ERROR -1
-#define BB_ERRNO errno
+#define BBNET_ERRNO errno
 typedef int bb_socket;
 #if BB_USING(BB_PLATFORM_ANDROID)
 typedef int bb_recvfrom_sin_size;

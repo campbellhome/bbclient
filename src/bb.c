@@ -232,9 +232,20 @@ void bb_init(const char *applicationName, const char *sourceApplicationName, u32
 		bb_discovery_result_t discovery = bb_discovery_client_start(applicationName, sourceApplicationName,
 		                                                            sourceIp, 0, 0);
 		if(discovery.serverIp) {
-			if(bbcon_connect_client(&s_con, discovery.serverIp, discovery.serverPort)) {
+#if 1
+			if(bbcon_connect_client_async(&s_con, discovery.serverIp, discovery.serverPort)) {
+				while(bbcon_is_connecting(&s_con)) {
+					bbcon_tick_connecting(&s_con);
+				}
+				if(bbcon_is_connected(&s_con)) {
+					sendAppInfo = true;
+				}
+			}
+#else
+			if(bbcon_connect_client(&s_con, discovery.serverIp, discovery.serverPort, 5)) {
 				sendAppInfo = true;
 			}
+#endif
 		}
 	}
 

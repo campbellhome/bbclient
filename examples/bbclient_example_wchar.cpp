@@ -49,8 +49,8 @@ int main(int argc, const char **argv)
 
 	//bb_init_file_w(L"bbclient.bbox");
 	//BB_INIT(L"bbclient: matt");
-	BB_INIT_WITH_FLAGS(L"bbclient: matt", kBBInitFlag_ConsoleCommands);
-	//BB_INIT_WITH_FLAGS(L"bbclient: matt (no view)", kBBInitFlag_NoOpenView);
+	BB_INIT_WITH_FLAGS(L"bbclient: matt", kBBInitFlag_ConsoleCommands | kBBInitFlag_DebugInit);
+	//BB_INIT_WITH_FLAGS(L"bbclient: matt (no view)", kBBInitFlag_NoOpenView | kBBInitFlag_DebugInit);
 	BB_THREAD_START(L"main thread!");
 	BB_LOG(L"startup", L"bbclient init took %llu ms", bb_current_time_ms() - start);
 
