@@ -71,32 +71,37 @@ void bbnet_gracefulclose(bb_socket *socket)
 	}
 }
 
-void bbnet_socket_nodelay(bb_socket socket, b32 nodelay)
+int bbnet_socket_nodelay(bb_socket socket, b32 nodelay)
 {
 	int disableNagle = nodelay;
-	setsockopt(socket, SOL_SOCKET, TCP_NODELAY, (char *)&disableNagle, sizeof(disableNagle));
+	return setsockopt(socket, SOL_SOCKET, TCP_NODELAY, (char *)&disableNagle, sizeof(disableNagle));
 }
 
-void bbnet_socket_linger(bb_socket socket, b32 enabled, u16 seconds)
+int bbnet_socket_linger(bb_socket socket, b32 enabled, u16 seconds)
 {
 	struct linger data = { BB_EMPTY_INITIALIZER };
 	data.l_linger = seconds;
 	data.l_onoff = enabled ? 1u : 0u;
-	setsockopt(socket, SOL_SOCKET, SO_LINGER, (char *)&data, sizeof(data));
+	return setsockopt(socket, SOL_SOCKET, SO_LINGER, (char *)&data, sizeof(data));
 }
 
-void bbnet_socket_nonblocking(bb_socket socket, b32 nonblocking)
+int bbnet_socket_reuseaddr(bb_socket socket, int reuseAddr)
+{
+	return setsockopt(socket, SOL_SOCKET, SO_REUSEADDR, (char *)&reuseAddr, sizeof(reuseAddr));
+}
+
+int bbnet_socket_nonblocking(bb_socket socket, b32 nonblocking)
 {
 #if BB_USING(BB_COMPILER_MSVC)
 
 	u_long nonBlocking = (u_long)nonblocking;
-	ioctlsocket(socket, FIONBIO, &nonBlocking);
+	return ioctlsocket(socket, FIONBIO, &nonBlocking);
 
 #elif BB_USING(BB_COMPILER_CLANG) // #if BB_USING(BB_COMPILER_MSVC)
 
 	int flags = fcntl(socket, F_GETFL, 0);
 	flags = (nonblocking) ? (flags | O_NONBLOCK) : (flags & (~O_NONBLOCK));
-	fcntl(socket, F_SETFL, flags);
+	return fcntl(socket, F_SETFL, flags);
 
 #else // #elif BB_USING(BB_COMPILER_CLANG) // #if BB_USING(BB_COMPILER_MSVC)
 

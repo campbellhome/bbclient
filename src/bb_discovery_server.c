@@ -31,6 +31,8 @@ b32 bb_discovery_server_init(bb_discovery_server_t *ds)
 	sin.sin_port = htons(BB_DISCOVERY_PORT);
 	BB_S_ADDR_UNION(sin) = INADDR_ANY;
 
+	bbnet_socket_reuseaddr(ds->socket, true);
+
 	char ipstr[32];
 	bb_format_ip(ipstr, sizeof(ipstr), INADDR_ANY);
 	BB_LOG_A("Discovery", "Binding %s:%d for discovery...", ipstr, BB_DISCOVERY_PORT);
