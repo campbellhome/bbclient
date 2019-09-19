@@ -30,7 +30,7 @@ typedef struct
 void bbserialize_init_read(bb_serialize_t *ser, void *buffer, u32 len);
 void bbserialize_init_write(bb_serialize_t *ser, void *buffer, u32 len);
 u32 bbserialize_get_cursor(bb_serialize_t *ser);
-u16 bbserialize_get_remaining(bb_serialize_t *ser);
+u32 bbserialize_get_remaining(bb_serialize_t *ser);
 bbserialize_state_e bbserialize_get_state(bb_serialize_t *ser);
 b32 bbserialize_is_reading(bb_serialize_t *ser);
 

@@ -31,9 +31,9 @@ u32 bbserialize_get_cursor(bb_serialize_t *ser)
 	return ser->nCursorBytes;
 }
 
-u16 bbserialize_get_remaining(bb_serialize_t *ser)
+u32 bbserialize_get_remaining(bb_serialize_t *ser)
 {
-	return (u16)(ser->nBufferBytes - ser->nCursorBytes);
+	return ser->nBufferBytes - ser->nCursorBytes;
 }
 
 bbserialize_state_e bbserialize_get_state(bb_serialize_t *ser)
