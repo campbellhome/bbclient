@@ -338,6 +338,37 @@ void bb_flush(void)
 	bbcon_flush(&s_con);
 }
 
+void bb_echo_to_stdout(void *context, bb_decoded_packet_t *decoded)
+{
+	BB_UNUSED(context);
+	if(decoded->type == kBBPacketType_LogText) {
+		switch(decoded->packet.logText.level) {
+		case kBBLogLevel_Warning:
+		case kBBLogLevel_Error:
+		case kBBLogLevel_Fatal:
+			fputs(decoded->packet.logText.text, stderr);
+#if BB_USING(BB_PLATFORM_WINDOWS)
+			OutputDebugStringA(decoded->packet.logText.text);
+#endif
+			break;
+
+		case kBBLogLevel_Log:
+		case kBBLogLevel_Display:
+			fputs(decoded->packet.logText.text, stdout);
+#if BB_USING(BB_PLATFORM_WINDOWS)
+			OutputDebugStringA(decoded->packet.logText.text);
+#endif
+			break;
+
+		default:
+#if BB_USING(BB_PLATFORM_WINDOWS)
+			OutputDebugStringA(decoded->packet.logText.text);
+#endif
+			break;
+		}
+	}
+}
+
 void bb_set_write_callback(bb_write_callback callback, void *context)
 {
 	s_bb_write_callback = callback;

@@ -104,6 +104,7 @@ void bb_set_flush_callback(bb_flush_callback callback, void *context);
 typedef struct bb_decoded_packet_s bb_decoded_packet_t;
 typedef void (*bb_send_callback)(void *context, bb_decoded_packet_t *decoded);
 void bb_set_send_callback(bb_send_callback callback, void *context);
+void bb_echo_to_stdout(void *context, bb_decoded_packet_t *decoded);
 
 typedef void (*bb_incoming_console_command_handler)(const char *command, void *context);
 void bb_set_incoming_console_command_handler(bb_incoming_console_command_handler handler, void *context);
