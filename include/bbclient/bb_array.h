@@ -71,6 +71,12 @@ static BB_INLINE U *bba__template_add(T &a, U *, u32 n, b32 clear, b32 reserve_o
 			bba_last(a) = (v);              \
 		}                                   \
 	}
+#define bba_push_from_loc(file, line, a, v)                      \
+	{                                                            \
+		if(bba_add_noclear_from_loc(file, line, a, 1) != NULL) { \
+			bba_last(a) = (v);                                   \
+		}                                                        \
+	}
 #define bba_last(a) ((a).data[(a).count - 1])
 
 #define bba_erase(a, n)                                                                   \
