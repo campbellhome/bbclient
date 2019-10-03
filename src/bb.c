@@ -341,7 +341,7 @@ void bb_flush(void)
 void bb_echo_to_stdout(void *context, bb_decoded_packet_t *decoded)
 {
 	BB_UNUSED(context);
-	if(decoded->type == kBBPacketType_LogText) {
+	if(bbpacket_is_log_text_type(decoded->type) || decoded->type == kBBPacketType_LogText) {
 		switch(decoded->packet.logText.level) {
 		case kBBLogLevel_Warning:
 		case kBBLogLevel_Error:

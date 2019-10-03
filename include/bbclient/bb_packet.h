@@ -117,6 +117,7 @@ enum {
 b32 bbpacket_deserialize(u8 *buffer, u16 len, bb_decoded_packet_t *decoded);
 u16 bbpacket_serialize(bb_decoded_packet_t *source, u8 *buffer, u16 len);
 b32 bbpacket_is_app_info_type(bb_packet_type_e type);
+b32 bbpacket_is_log_text_type(bb_packet_type_e type);
 
 #if defined(__cplusplus)
 }
