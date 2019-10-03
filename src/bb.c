@@ -228,6 +228,7 @@ void bb_init(const char *applicationName, const char *sourceApplicationName, u32
 	bb_critical_section_init(&s_id_cs);
 	bb_log_init();
 	bbcon_init(&s_con);
+	s_con.flags |= kBBCon_Blackbox;
 	if(bbnet_init() && (initFlags & kBBInitFlag_NoDiscovery) == 0) {
 		bb_discovery_result_t discovery = bb_discovery_client_start(applicationName, sourceApplicationName,
 		                                                            sourceIp, 0, 0);

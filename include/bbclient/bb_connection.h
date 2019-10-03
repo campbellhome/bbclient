@@ -25,8 +25,9 @@ typedef enum {
 } bb_connection_state_e;
 
 typedef enum {
-	kBBCon_Client = 1 << 0, // internal use only
-	kBBCon_Server = 1 << 1, // internal use only
+	kBBCon_Client = 1 << 0,   // internal use only
+	kBBCon_Server = 1 << 1,   // internal use only
+	kBBCon_Blackbox = 1 << 2, // internal use only
 } bb_connection_flag_e;
 
 // post-discovery connection
