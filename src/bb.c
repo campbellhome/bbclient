@@ -63,7 +63,12 @@ static bb_connection_t s_con;
 static bb_critical_section s_id_cs;
 static bb_file_handle_t s_fp;
 static u64 s_lastFileFlushTime;
+static char s_sourceApplicationName[kBBSize_ApplicationName];
+static char s_applicationName[kBBSize_ApplicationName];
 u32 g_bb_initFlags;
+static u32 s_sourceIp;
+static b32 s_bCallbackSentAppInfo;
+static b32 s_bFileSentAppInfo;
 static bb_write_callback s_bb_write_callback;
 static void *s_bb_write_callback_context;
 static bb_flush_callback s_bb_flush_callback;
@@ -204,10 +209,76 @@ const char *bb_platform_name(bb_platform_e platform)
 	return s_bb_platformNames[platform];
 }
 
+static BB_INLINE void bb_send_directed(bb_decoded_packet_t *decoded, b32 bCallbacks, b32 bSocket, b32 bFile)
+{
+	if(s_bb_send_callback && bCallbacks) {
+		(*s_bb_send_callback)(s_bb_send_callback_context, decoded);
+	}
+	if(s_fp || s_bb_write_callback) {
+		u8 buf[BB_MAX_PACKET_BUFFER_SIZE];
+		u16 serializedLen = bbpacket_serialize(decoded, buf + 2, sizeof(buf) - 2);
+		if(serializedLen) {
+			serializedLen += 2;
+			buf[0] = (u8)(serializedLen >> 8);
+			buf[1] = (u8)(serializedLen & 0xFF);
+			if(s_bb_write_callback && bCallbacks) {
+				(*s_bb_write_callback)(s_bb_write_callback_context, buf, serializedLen);
+			}
+			if(s_fp && bFile) {
+				bb_file_write(s_fp, buf, serializedLen);
+			}
+		} else {
+			bb_error("bb_send failed to encode packet");
+		}
+	}
+	if(bSocket) {
+		bbcon_send(&s_con, decoded);
+	}
+}
+
+static void bb_send_ids(bb_ids_t *ids, bb_packet_type_e packetType, b32 bCallbacks, b32 bSocket, b32 bFile)
+{
+	for(u32 i = 0; i < ids->count; ++i) {
+		bb_id_t *id = ids->data + i;
+		bb_decoded_packet_t decoded = { BB_EMPTY_INITIALIZER };
+		bb_fill_header(&decoded, packetType, 0, 0);
+		decoded.packet.registerId.id = id->id;
+		bb_strncpy(decoded.packet.registerId.name, id->text, sizeof(decoded.packet.registerId.name));
+		bb_send_directed(&decoded, bCallbacks, bSocket, bFile);
+	}
+}
+
+static void bb_send_initial(b32 bCallbacks, b32 bSocket, b32 bFile)
+{
+	bb_decoded_packet_t decoded;
+	decoded.type = kBBPacketType_AppInfo;
+	decoded.header.timestamp = bb_current_ticks();
+	decoded.header.threadId = bb_get_current_thread_id();
+	decoded.header.fileId = 0;
+	decoded.header.line = 0;
+	decoded.packet.appInfo.initialTimestamp = decoded.header.timestamp;
+	decoded.packet.appInfo.millisPerTick = bb_millis_per_tick();
+	decoded.packet.appInfo.initFlags = g_bb_initFlags;
+	decoded.packet.appInfo.platform = bb_platform();
+	decoded.packet.appInfo.microsecondsFromEpoch = bb_current_time_microseconds_from_epoch();
+	bb_strncpy(decoded.packet.appInfo.applicationName, s_applicationName, sizeof(decoded.packet.appInfo.applicationName));
+	bb_send_directed(&decoded, bCallbacks, bSocket, bFile);
+
+	bb_send_ids(&s_bb_pathIds, kBBPacketType_FileId, bCallbacks, bSocket, bFile);
+	bb_send_ids(&s_bb_categoryIds, kBBPacketType_CategoryId, bCallbacks, bSocket, bFile);
+}
+
 void bb_init_file(const char *path)
 {
 	if(!s_fp) {
 		s_fp = bb_file_open_for_write(path);
+
+		if(s_id_cs.initialized) {
+			bb_critical_section_lock(&s_id_cs);
+			bb_send_initial(false, false, true);
+			bb_critical_section_unlock(&s_id_cs);
+			s_bFileSentAppInfo = true;
+		}
 	}
 }
 
@@ -218,54 +289,77 @@ void bb_init_file_w(const bb_wchar_t *path)
 }
 #endif // #if BB_COMPILE_WIDECHAR
 
-void bb_init(const char *applicationName, const char *sourceApplicationName, u32 sourceIp, u32 initFlags)
+void bb_disconnect(void)
 {
-	b32 sendAppInfo = s_fp != NULL || s_bb_write_callback != NULL;
-	if(!sourceApplicationName) {
-		sourceApplicationName = "";
+	if(bbcon_is_connected(&s_con)) {
+		bbcon_disconnect(&s_con);
 	}
-	g_bb_initFlags = initFlags;
-	bb_critical_section_init(&s_id_cs);
-	bb_log_init();
-	bbcon_init(&s_con);
-	s_con.flags |= kBBCon_Blackbox;
-	if(bbnet_init() && (initFlags & kBBInitFlag_NoDiscovery) == 0) {
-		bb_discovery_result_t discovery = bb_discovery_client_start(applicationName, sourceApplicationName,
-		                                                            sourceIp, 0, 0);
+}
+
+void bb_connect(uint32_t targetIp, uint16_t targetPort)
+{
+	if(!s_id_cs.initialized)
+		return;
+
+	bb_critical_section_lock(&s_id_cs);
+
+	b32 bCallbacks = !s_bCallbackSentAppInfo;
+	s_bCallbackSentAppInfo = true;
+	b32 bFile = !s_bFileSentAppInfo;
+	s_bFileSentAppInfo = true;
+	b32 bSocket = false;
+	if(targetIp && targetPort) {
+		bb_disconnect();
+		bb_discovery_result_t discovery = bb_discovery_client_start(s_applicationName, s_sourceApplicationName,
+		                                                            s_sourceIp, targetIp, targetPort);
 		if(discovery.serverIp) {
-#if 1
 			if(bbcon_connect_client_async(&s_con, discovery.serverIp, discovery.serverPort)) {
 				while(bbcon_is_connecting(&s_con)) {
 					bbcon_tick_connecting(&s_con);
 				}
 				if(bbcon_is_connected(&s_con)) {
-					sendAppInfo = true;
+					bSocket = true;
 				}
 			}
-#else
-			if(bbcon_connect_client(&s_con, discovery.serverIp, discovery.serverPort, 5)) {
-				sendAppInfo = true;
-			}
-#endif
 		}
 	}
-
-	if(sendAppInfo) {
-		// connected - send any initial packets such as application name :)
-		bb_decoded_packet_t decoded;
-		decoded.type = kBBPacketType_AppInfo;
-		decoded.header.timestamp = bb_current_ticks();
-		decoded.header.threadId = bb_get_current_thread_id();
-		decoded.header.fileId = 0;
-		decoded.header.line = 0;
-		decoded.packet.appInfo.initialTimestamp = decoded.header.timestamp;
-		decoded.packet.appInfo.millisPerTick = bb_millis_per_tick();
-		decoded.packet.appInfo.initFlags = initFlags;
-		decoded.packet.appInfo.platform = bb_platform();
-		decoded.packet.appInfo.microsecondsFromEpoch = bb_current_time_microseconds_from_epoch();
-		bb_strncpy(decoded.packet.appInfo.applicationName, applicationName, sizeof(decoded.packet.appInfo.applicationName));
-		bb_send(&decoded);
+	if(!bbcon_is_connected(&s_con)) {
+		if((g_bb_initFlags & kBBInitFlag_NoDiscovery) == 0) {
+			bb_discovery_result_t discovery = bb_discovery_client_start(s_applicationName, s_sourceApplicationName,
+			                                                            s_sourceIp, 0, 0);
+			if(discovery.serverIp) {
+				if(bbcon_connect_client_async(&s_con, discovery.serverIp, discovery.serverPort)) {
+					while(bbcon_is_connecting(&s_con)) {
+						bbcon_tick_connecting(&s_con);
+					}
+					if(bbcon_is_connected(&s_con)) {
+						bSocket = true;
+					}
+				}
+			}
+		}
 	}
+	bb_send_initial(bCallbacks, bSocket, bFile);
+
+	bb_critical_section_unlock(&s_id_cs);
+}
+
+void bb_init(const char *applicationName, const char *sourceApplicationName, uint32_t sourceIp, bb_init_flags_t initFlags)
+{
+	if(!sourceApplicationName) {
+		sourceApplicationName = "";
+	}
+	bb_strncpy(s_applicationName, applicationName, sizeof(s_applicationName));
+	bb_strncpy(s_sourceApplicationName, sourceApplicationName, sizeof(s_sourceApplicationName));
+	g_bb_initFlags = initFlags;
+	bb_critical_section_init(&s_id_cs);
+	bb_log_init();
+	bbnet_init();
+	bbcon_init(&s_con);
+	s_con.flags |= kBBCon_Blackbox;
+	s_sourceIp = sourceIp;
+
+	bb_connect(0, 0);
 }
 
 #if BB_COMPILE_WIDECHAR

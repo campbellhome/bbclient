@@ -91,6 +91,8 @@ void bb_init_w(const bb_wchar_t *applicationName, const bb_wchar_t *sourceApplic
 void bb_init_file_w(const bb_wchar_t *path);
 #endif // #if BB_WIDECHAR
 
+void bb_connect(uint32_t targetIp, uint16_t targetPort);
+void bb_disconnect(void);
 int bb_is_connected(void);
 void bb_tick(void);
 void bb_flush(void);

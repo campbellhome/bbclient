@@ -215,6 +215,7 @@ void bb_discovery_process_request(bb_discovery_server_t *ds, struct sockaddr_in 
 			if(pending->socket == BB_INVALID_SOCKET) {
 				BB_ERROR_A("Discovery", "ignoring reservation accept request from %s - too many pending connections", ip);
 			} else {
+				BB_LOG_A("Discovery", "pending connection %u using socket %d", ds->numPendingConnections, pending->socket);
 				bb_strncpy(pending->applicationName, decoded->packet.request.applicationName, sizeof(pending->applicationName));
 				response->nMaxTimesSent = kBBDiscoveryRetries;
 				response->packet.type = kBBDiscoveryPacketType_ReservationAccept;

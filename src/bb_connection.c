@@ -59,7 +59,12 @@ void bbcon_shutdown(bb_connection_t *con)
 void bbcon_reset(bb_connection_t *con)
 {
 	bbcon_disconnect(con);
-	bbcon_init(con);
+	con->sendCursor = con->recvCursor = con->decodeCursor = 0;
+	con->prevSendTime = 0;
+	con->flags = con->flags = con->flags & (~(kBBCon_Client | kBBCon_Server));
+	if(!con->connectTimeoutInterval) {
+		con->connectTimeoutInterval = 10000;
+	}
 }
 
 b32 bbcon_connect_client_async(bb_connection_t *con, u32 remoteAddr, u16 remotePort)
@@ -326,14 +331,6 @@ b32 bbcon_is_connected(const bb_connection_t *con)
 	return con->socket != BB_INVALID_SOCKET && con->state != kBBConnection_Listening && con->state != kBBConnection_Connecting;
 }
 
-void bbcon_disconnect(bb_connection_t *con)
-{
-	if(con->socket != BB_INVALID_SOCKET) {
-		bbnet_gracefulclose(&con->socket);
-		con->state = kBBConnection_NotConnected;
-	}
-}
-
 // Retry sends until we've sent everything or disconnected
 static void bbcon_flush_no_lock(bb_connection_t *con, b32 retry)
 {
@@ -401,6 +398,19 @@ static void bbcon_flush_no_lock(bb_connection_t *con, b32 retry)
 	if(con->prevSendTime - start > 10) {
 		BBCON_WARNING("bb_flush took %" PRIu64 " ms", con->prevSendTime - start);
 	}
+}
+
+void bbcon_disconnect(bb_connection_t *con)
+{
+	if(!con->cs.initialized)
+		return;
+	bb_critical_section_lock(&con->cs);
+	if(con->socket != BB_INVALID_SOCKET) {
+		bbcon_flush_no_lock(con, true);
+		bbnet_gracefulclose(&con->socket);
+		con->state = kBBConnection_NotConnected;
+	}
+	bb_critical_section_unlock(&con->cs);
 }
 
 void bbcon_flush(bb_connection_t *con)
@@ -557,7 +567,11 @@ static void bbcon_receive(bb_connection_t *con)
 		if(nBytesReceived <= 0) {
 			if(nBytesAvailable > 0) {
 				int err = BBNET_ERRNO;
-				BBCON_ERROR("bbcon_receive: disconnected during recv with errno %d (%s)", err, bbnet_error_to_string(err));
+				if(err) {
+					BBCON_ERROR("bbcon_receive: disconnected during recv with errno %d (%s)", err, bbnet_error_to_string(err));
+				} else {
+					BBCON_LOG("bbcon_receive: disconnected during recv with errno %d (%s)", err, bbnet_error_to_string(err));
+				}
 				bbcon_disconnect(con);
 			}
 			return;
