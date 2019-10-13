@@ -431,7 +431,7 @@ void bbcon_try_flush(bb_connection_t *con)
 	bb_critical_section_unlock(&con->cs);
 }
 
-static void _bbcon_send(bb_connection_t *con, const void *pData, u16 nBytes)
+static void _bbcon_send(bb_connection_t *con, const void *pData, u32 nBytes)
 {
 	u64 now;
 	u32 nRemaining = nBytes;
@@ -456,7 +456,7 @@ static void _bbcon_send(bb_connection_t *con, const void *pData, u16 nBytes)
 	}
 }
 
-void bbcon_send_raw(bb_connection_t *con, const void *pData, u16 nBytes)
+void bbcon_send_raw(bb_connection_t *con, const void *pData, u32 nBytes)
 {
 	if(!con->cs.initialized)
 		return;

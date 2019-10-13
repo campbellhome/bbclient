@@ -296,7 +296,7 @@ void bb_disconnect(void)
 	}
 }
 
-void bb_connect(uint32_t targetIp, uint16_t targetPort)
+void bb_connect_direct(uint32_t targetIp, uint16_t targetPort, const void *payload, uint32_t payloadBytes)
 {
 	if(!s_id_cs.initialized)
 		return;
@@ -308,10 +308,40 @@ void bb_connect(uint32_t targetIp, uint16_t targetPort)
 	b32 bFile = !s_bFileSentAppInfo;
 	s_bFileSentAppInfo = true;
 	b32 bSocket = false;
-	if(targetIp && targetPort) {
+	bb_disconnect();
+	if(bbcon_connect_client_async(&s_con, targetIp, targetPort)) {
+		while(bbcon_is_connecting(&s_con)) {
+			bbcon_tick_connecting(&s_con);
+		}
+		if(bbcon_is_connected(&s_con)) {
+			bSocket = true;
+
+			if(payload && payloadBytes) {
+				bbcon_send_raw(&s_con, payload, payloadBytes);
+			}
+		}
+	}
+	bb_send_initial(bCallbacks, bSocket, bFile);
+
+	bb_critical_section_unlock(&s_id_cs);
+}
+
+void bb_connect(uint32_t discoveryIp, uint16_t discoveryPort)
+{
+	if(!s_id_cs.initialized)
+		return;
+
+	bb_critical_section_lock(&s_id_cs);
+
+	b32 bCallbacks = !s_bCallbackSentAppInfo;
+	s_bCallbackSentAppInfo = true;
+	b32 bFile = !s_bFileSentAppInfo;
+	s_bFileSentAppInfo = true;
+	b32 bSocket = false;
+	if(discoveryIp && discoveryPort) {
 		bb_disconnect();
 		bb_discovery_result_t discovery = bb_discovery_client_start(s_applicationName, s_sourceApplicationName,
-		                                                            s_sourceIp, targetIp, targetPort);
+		                                                            s_sourceIp, discoveryIp, discoveryPort);
 		if(discovery.serverIp) {
 			if(bbcon_connect_client_async(&s_con, discovery.serverIp, discovery.serverPort)) {
 				while(bbcon_is_connecting(&s_con)) {
