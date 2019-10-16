@@ -43,7 +43,7 @@ void bbcon_init(bb_connection_t *con)
 	con->socket = BB_INVALID_SOCKET;
 	con->sendCursor = con->recvCursor = con->decodeCursor = 0;
 	con->prevSendTime = 0;
-	con->flags = con->flags = con->flags & (~(kBBCon_Client | kBBCon_Server));
+	con->flags = con->flags & (~(kBBCon_Client | kBBCon_Server));
 	con->state = kBBConnection_NotConnected;
 	if(!con->connectTimeoutInterval) {
 		con->connectTimeoutInterval = 10000;
