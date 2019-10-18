@@ -9,6 +9,7 @@
 #include "bbclient/bb_time.h"
 
 BB_WARNING_DISABLE(4514) // unreferenced inline function has been removed
+BB_WARNING_DISABLE(4710) // function not inlined
 
 #include "bbclient/bb_wrap_stdio.h"
 #if defined(_MSC_VER)
