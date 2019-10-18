@@ -99,6 +99,7 @@ int main(int argc, const char **argv)
 	printf("Here we go...\n");
 	bb_disconnect();
 	bb_connect(0, 0);
+
 	while(BB_IS_CONNECTED() && !s_bQuit) {
 		BB_TICK();
 		BB_LOG(L"test::frame", L"-----------------------------------------------------");
