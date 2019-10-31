@@ -41,7 +41,8 @@ typedef enum {
 
 	kBBPacketType_LogTextPartial, // Client --> Server
 
-	kBBPacketType_Restart, // Not serialized or sent - used internally
+	kBBPacketType_Restart,       // Not serialized or sent - used internally
+	kBBPacketType_StopRecording, // Not serialized or sent - used internally
 
 } bb_packet_type_e;
 

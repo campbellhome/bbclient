@@ -128,9 +128,9 @@ int main(int argc, const char **argv)
 		BB_LOG(L"test::spam3", L"over and");
 		BB_LOG(L"test::spam3", L"over.");
 		bb_sleep_ms(50);
-		if(bb_current_time_ms() - start > 1000) {
-			break;
-		}
+		//if(bb_current_time_ms() - start > 1000) {
+		//	break;
+		//}
 	}
 
 	BB_SHUTDOWN();
