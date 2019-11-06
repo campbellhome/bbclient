@@ -402,13 +402,13 @@ static void bbcon_flush_no_lock(bb_connection_t *con, b32 retry)
 
 void bbcon_disconnect(bb_connection_t *con)
 {
-	if(!con->cs.initialized)
+	if(!con->cs.initialized || con->state == kBBConnection_NotConnected)
 		return;
 	bb_critical_section_lock(&con->cs);
 	if(con->socket != BB_INVALID_SOCKET) {
+		con->state = kBBConnection_NotConnected;
 		bbcon_flush_no_lock(con, true);
 		bbnet_gracefulclose(&con->socket);
-		con->state = kBBConnection_NotConnected;
 	}
 	bb_critical_section_unlock(&con->cs);
 }
