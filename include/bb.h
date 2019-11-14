@@ -95,6 +95,8 @@ void bb_connect(uint32_t discoveryIp, uint16_t discoveryPort);
 void bb_connect_direct(uint32_t targetIp, uint16_t targetPort, const void *payload, uint32_t payloadBytes);
 void bb_disconnect(void);
 int bb_is_connected(void);
+uint32_t bb_get_server_ip(void);
+uint16_t bb_get_server_port(void);
 void bb_tick(void);
 void bb_flush(void);
 

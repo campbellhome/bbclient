@@ -67,6 +67,8 @@ static char s_sourceApplicationName[kBBSize_ApplicationName];
 static char s_applicationName[kBBSize_ApplicationName];
 u32 g_bb_initFlags;
 static u32 s_sourceIp;
+static u32 s_serverIp;
+static u16 s_serverPort;
 static b32 s_bCallbackSentAppInfo;
 static b32 s_bFileSentAppInfo;
 static bb_write_callback s_bb_write_callback;
@@ -289,6 +291,16 @@ void bb_init_file_w(const bb_wchar_t *path)
 }
 #endif // #if BB_COMPILE_WIDECHAR
 
+uint32_t bb_get_server_ip(void)
+{
+	return s_serverIp;
+}
+
+uint16_t bb_get_server_port(void)
+{
+	return s_serverPort;
+}
+
 void bb_disconnect(void)
 {
 	if(bbcon_is_connected(&s_con)) {
@@ -309,6 +321,8 @@ void bb_connect_direct(uint32_t targetIp, uint16_t targetPort, const void *paylo
 	s_bFileSentAppInfo = true;
 	b32 bSocket = false;
 	bb_disconnect();
+	s_serverIp = targetIp;
+	s_serverPort = targetPort;
 	if(bbcon_connect_client_async(&s_con, targetIp, targetPort)) {
 		while(bbcon_is_connecting(&s_con)) {
 			bbcon_tick_connecting(&s_con);
@@ -343,6 +357,8 @@ void bb_connect(uint32_t discoveryIp, uint16_t discoveryPort)
 		bb_discovery_result_t discovery = bb_discovery_client_start(s_applicationName, s_sourceApplicationName,
 		                                                            s_sourceIp, discoveryIp, discoveryPort);
 		if(discovery.serverIp) {
+			s_serverIp = discovery.serverIp;
+			s_serverPort = discovery.serverPort;
 			if(bbcon_connect_client_async(&s_con, discovery.serverIp, discovery.serverPort)) {
 				while(bbcon_is_connecting(&s_con)) {
 					bbcon_tick_connecting(&s_con);
@@ -358,6 +374,8 @@ void bb_connect(uint32_t discoveryIp, uint16_t discoveryPort)
 			bb_discovery_result_t discovery = bb_discovery_client_start(s_applicationName, s_sourceApplicationName,
 			                                                            s_sourceIp, 0, 0);
 			if(discovery.serverIp) {
+				s_serverIp = discovery.serverIp;
+				s_serverPort = discovery.serverPort;
 				if(bbcon_connect_client_async(&s_con, discovery.serverIp, discovery.serverPort)) {
 					while(bbcon_is_connecting(&s_con)) {
 						bbcon_tick_connecting(&s_con);
