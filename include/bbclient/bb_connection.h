@@ -62,6 +62,7 @@ b32 bbcon_is_listening(const bb_connection_t *con);
 
 b32 bbcon_is_connected(const bb_connection_t *con);
 void bbcon_disconnect(bb_connection_t *con);
+void bbcon_disconnect_no_flush(bb_connection_t *con);
 
 void bbcon_send(bb_connection_t *con, bb_decoded_packet_t *decoded);
 void bbcon_send_raw(bb_connection_t *con, const void *pData, u32 nBytes);

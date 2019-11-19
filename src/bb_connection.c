@@ -148,13 +148,13 @@ b32 bbcon_tick_connecting(bb_connection_t *con)
 		return true;
 	} else if(err) {
 		BBCON_ERROR("bbcon_tick_connecting failed with errno %d (%s)", err, bbnet_error_to_string(err));
-		bbcon_disconnect(con);
+		bbcon_disconnect_no_flush(con);
 		return false;
 	} else {
 		u64 now = bb_current_time_ms();
 		if(now >= con->connectTimeoutTime) {
 			BBCON_ERROR("bbcon_tick_connecting failed - timed out waiting to connect");
-			bbcon_disconnect(con);
+			bbcon_disconnect_no_flush(con);
 		}
 		return false;
 	}
@@ -290,7 +290,7 @@ b32 bbcon_tick_listening(bb_connection_t *con)
 		u64 now = bb_current_time_ms();
 		if(now >= con->connectTimeoutTime) {
 			BBCON_ERROR("bbcon_connect_server failed - timed out waiting for client to connect");
-			bbcon_disconnect(con);
+			bbcon_disconnect_no_flush(con);
 		}
 		return false;
 	}
@@ -298,7 +298,7 @@ b32 bbcon_tick_listening(bb_connection_t *con)
 	clientSock = accept(con->socket, (struct sockaddr *)&remoteAddrStorage, &addrLen);
 	if(clientSock == BB_INVALID_SOCKET) {
 		BBCON_ERROR("bbcon_connect_server failed - client failed to connect");
-		bbcon_disconnect(con);
+		bbcon_disconnect_no_flush(con);
 		return false;
 	}
 
@@ -354,7 +354,7 @@ static void bbcon_flush_no_lock(bb_connection_t *con, b32 retry)
 		if(ret == BB_SOCKET_ERROR) {
 			int err = BBNET_ERRNO;
 			BBCON_LOG("bbcon_flush: disconnected during select with errno %d (%s)", err, bbnet_error_to_string(err));
-			bbcon_disconnect(con);
+			bbcon_disconnect_no_flush(con);
 			break;
 		}
 
@@ -363,7 +363,7 @@ static void bbcon_flush_no_lock(bb_connection_t *con, b32 retry)
 			if(now >= timeout) // OS internal buffer has been full for a really long time (server crashed?), so we're done
 			{
 				BBCON_LOG("bbcon_flush: timed out after %" PRIu64 " ms", now - start);
-				bbcon_disconnect(con);
+				bbcon_disconnect_no_flush(con);
 				break;
 			}
 
@@ -374,7 +374,7 @@ static void bbcon_flush_no_lock(bb_connection_t *con, b32 retry)
 		if(ret == BB_SOCKET_ERROR) {
 			int err = BBNET_ERRNO;
 			BBCON_LOG("bbcon_flush: disconnected during send with errno %d (%s)", err, bbnet_error_to_string(err));
-			bbcon_disconnect(con);
+			bbcon_disconnect_no_flush(con);
 			break;
 		}
 
@@ -408,6 +408,18 @@ void bbcon_disconnect(bb_connection_t *con)
 	if(con->socket != BB_INVALID_SOCKET) {
 		con->state = kBBConnection_NotConnected;
 		bbcon_flush_no_lock(con, true);
+		bbnet_gracefulclose(&con->socket);
+	}
+	bb_critical_section_unlock(&con->cs);
+}
+
+void bbcon_disconnect_no_flush(bb_connection_t *con)
+{
+	if(!con->cs.initialized || con->state == kBBConnection_NotConnected)
+		return;
+	bb_critical_section_lock(&con->cs);
+	if(con->socket != BB_INVALID_SOCKET) {
+		con->state = kBBConnection_NotConnected;
 		bbnet_gracefulclose(&con->socket);
 	}
 	bb_critical_section_unlock(&con->cs);
@@ -556,7 +568,7 @@ static void bbcon_receive(bb_connection_t *con)
 		if(ret == BB_SOCKET_ERROR) {
 			int err = BBNET_ERRNO;
 			BBCON_ERROR("bbcon_receive: disconnected during select with errno %d (%s)", err, bbnet_error_to_string(err));
-			bbcon_disconnect(con);
+			bbcon_disconnect_no_flush(con);
 		}
 		//BBCON_LOG( "select returned %d", ret );
 		return;
@@ -572,7 +584,7 @@ static void bbcon_receive(bb_connection_t *con)
 				} else {
 					BBCON_LOG("bbcon_receive: disconnected during recv with errno %d (%s)", err, bbnet_error_to_string(err));
 				}
-				bbcon_disconnect(con);
+				bbcon_disconnect_no_flush(con);
 			}
 			return;
 		}
