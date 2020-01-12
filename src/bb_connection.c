@@ -342,45 +342,47 @@ static void bbcon_flush_no_lock(bb_connection_t *con, b32 retry)
 	u64 start = bb_current_time_ms();
 	u64 timeout = start + 2000;
 
-	while(nSendCursor < con->sendCursor) {
-		FD_ZERO(&set);
-		BB_FD_SET(con->socket, &set);
+	if(con->socket != BB_INVALID_SOCKET) {
+		while(nSendCursor < con->sendCursor) {
+			FD_ZERO(&set);
+			BB_FD_SET(con->socket, &set);
 
-		tv.tv_sec = 0;
-		tv.tv_usec = 1000;
-		ret = select((int)con->socket + 1, 0, &set, 0, &tv);
-		//BBCON_LOG( "Flush select ret:%d", ret );
+			tv.tv_sec = 0;
+			tv.tv_usec = 1000;
+			ret = select((int)con->socket + 1, 0, &set, 0, &tv);
+			//BBCON_LOG( "Flush select ret:%d", ret );
 
-		if(ret == BB_SOCKET_ERROR) {
-			int err = BBNET_ERRNO;
-			BBCON_LOG("bbcon_flush: disconnected during select with errno %d (%s)", err, bbnet_error_to_string(err));
-			bbcon_disconnect_no_flush(con);
-			break;
-		}
-
-		if(ret == 0) {
-			u64 now = bb_current_time_ms();
-			if(now >= timeout) // OS internal buffer has been full for a really long time (server crashed?), so we're done
-			{
-				BBCON_LOG("bbcon_flush: timed out after %" PRIu64 " ms", now - start);
+			if(ret == BB_SOCKET_ERROR) {
+				int err = BBNET_ERRNO;
+				BBCON_LOG("bbcon_flush: disconnected during select with errno %d (%s)", err, bbnet_error_to_string(err));
 				bbcon_disconnect_no_flush(con);
 				break;
 			}
 
-			continue; // OS internal buffer is full temporarily, so we'll retry
-		}
+			if(ret == 0) {
+				u64 now = bb_current_time_ms();
+				if(now >= timeout) // OS internal buffer has been full for a really long time (server crashed?), so we're done
+				{
+					BBCON_LOG("bbcon_flush: timed out after %" PRIu64 " ms", now - start);
+					bbcon_disconnect_no_flush(con);
+					break;
+				}
 
-		ret = send(con->socket, (const char *)(con->sendBuffer + nSendCursor), (int)(con->sendCursor - nSendCursor), 0);
-		if(ret == BB_SOCKET_ERROR) {
-			int err = BBNET_ERRNO;
-			BBCON_LOG("bbcon_flush: disconnected during send with errno %d (%s)", err, bbnet_error_to_string(err));
-			bbcon_disconnect_no_flush(con);
-			break;
-		}
+				continue; // OS internal buffer is full temporarily, so we'll retry
+			}
 
-		nSendCursor += ret;
-		if(!retry) {
-			break;
+			ret = send(con->socket, (const char *)(con->sendBuffer + nSendCursor), (int)(con->sendCursor - nSendCursor), 0);
+			if(ret == BB_SOCKET_ERROR) {
+				int err = BBNET_ERRNO;
+				BBCON_LOG("bbcon_flush: disconnected during send with errno %d (%s)", err, bbnet_error_to_string(err));
+				bbcon_disconnect_no_flush(con);
+				break;
+			}
+
+			nSendCursor += ret;
+			if(!retry) {
+				break;
+			}
 		}
 	}
 
