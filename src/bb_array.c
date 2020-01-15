@@ -32,6 +32,12 @@ void bba_set_logging(b32 allocs, b32 failedAllocs)
 	s_bba_logFailedAllocs = failedAllocs;
 }
 
+#if BB_USING(BB_COMPILER_MSVC)
+#define PRIPtr "0x%p"
+#else
+#define PRIPtr "%p"
+#endif
+
 void bba_log_free(void *p, u32 allocated, u64 bytes, const char *file, int line)
 {
 	BB_UNUSED(allocated);
@@ -43,7 +49,7 @@ void bba_log_free(void *p, u32 allocated, u64 bytes, const char *file, int line)
 
 	if(s_bba_logAllocs) {
 		char buf[256];
-		if(bb_snprintf(buf, sizeof(buf), "%s(%d) : bba_free(0x%p) (%" PRIu64 " bytes)\n", file, line, p, bytes) < 0) {
+		if(bb_snprintf(buf, sizeof(buf), "%s(%d) : bba_free(" PRIPtr ") (%" PRIu64 " bytes)\n", file, line, p, bytes) < 0) {
 			buf[sizeof(buf) - 1] = '\0';
 		}
 #if BB_USING(BB_COMPILER_MSVC)
@@ -68,7 +74,7 @@ static BB_INLINE void bba_log_realloc(u64 oldp, void *newp, u32 allocated, u32 d
 
 	if(s_bba_logAllocs) {
 		char buf[256];
-		if(bb_snprintf(buf, sizeof(buf), "%s(%d) : bba_realloc(0x%016.16" PRIX64 ", 0x%p) %" PRIu64 " bytes -> %" PRIu64 " bytes (%" PRIu64 " bytes)\n", file, line, oldp, newp, allocatedSize, desiredSize, desiredSize - allocatedSize) < 0) {
+		if(bb_snprintf(buf, sizeof(buf), "%s(%d) : bba_realloc(" PRIPtr ", " PRIPtr ") %" PRIu64 " bytes -> %" PRIu64 " bytes (%" PRIu64 " bytes)\n", file, line, (void *)oldp, newp, allocatedSize, desiredSize, desiredSize - allocatedSize) < 0) {
 			buf[sizeof(buf) - 1] = '\0';
 		}
 #if BB_USING(BB_COMPILER_MSVC)
@@ -83,8 +89,8 @@ static BB_INLINE void bba_log_overflowed_realloc(u64 oldp, u32 count, u32 increm
 {
 	if(s_bba_logFailedAllocs) {
 		char buf[256];
-		if(bb_snprintf(buf, sizeof(buf), "%s(%d) : bba_realloc(0x%016.16" PRIu64 ") bytes OVERFLOWED - count:%u increment:%u allocated:%u requested:%u\n",
-		               file, line, oldp, count, increment, allocated, requested) < 0) {
+		if(bb_snprintf(buf, sizeof(buf), "%s(%d) : bba_realloc(" PRIPtr ") bytes OVERFLOWED - count:%u increment:%u allocated:%u requested:%u\n",
+		               file, line, (void *)oldp, count, increment, allocated, requested) < 0) {
 			buf[sizeof(buf) - 1] = '\0';
 		}
 #if BB_USING(BB_COMPILER_MSVC)
@@ -98,7 +104,7 @@ static BB_INLINE void bba_log_failed_realloc(u64 oldp, u64 size, const char *fil
 {
 	if(s_bba_logFailedAllocs) {
 		char buf[256];
-		if(bb_snprintf(buf, sizeof(buf), "%s(%d) : bba_realloc(0x%016.16" PRIu64 ") %" PRIu64 " bytes FAILED\n", file, line, oldp, size) < 0) {
+		if(bb_snprintf(buf, sizeof(buf), "%s(%d) : bba_realloc(" PRIPtr ") %" PRIu64 " bytes FAILED\n", file, line, (void *)oldp, size) < 0) {
 			buf[sizeof(buf) - 1] = '\0';
 		}
 #if BB_USING(BB_COMPILER_MSVC)
