@@ -26,7 +26,7 @@ typedef struct bb_discovery_client_s {
 
 static b32 bb_discovery_send_request(bb_socket discoverySocket, bb_discovery_packet_type_e type,
                                      const char *applicationName, const char *sourceApplicationName,
-                                     u32 sourceIp, u32 ip, u16 port)
+                                     const char *deviceCode, u32 sourceIp, u32 ip, u16 port)
 {
 	int nBytesSent;
 	char ipport[32];
@@ -36,6 +36,7 @@ static b32 bb_discovery_send_request(bb_socket discoverySocket, bb_discovery_pac
 	bb_decoded_discovery_packet_t decoded;
 	decoded.type = type;
 	decoded.packet.request.sourceIp = sourceIp;
+	bb_strncpy(decoded.packet.request.deviceCode, deviceCode, sizeof(decoded.packet.request.deviceCode));
 	bb_strncpy(decoded.packet.request.sourceApplicationName, sourceApplicationName, sizeof(decoded.packet.request.sourceApplicationName));
 	bb_strncpy(decoded.packet.request.applicationName, applicationName, sizeof(decoded.packet.request.applicationName));
 	decoded.packet.request.platform = bb_platform();
@@ -125,7 +126,7 @@ static b32 bb_discovery_client_recvfrom(bb_socket socket, struct sockaddr_in *ad
 	return false;
 }
 
-bb_discovery_result_t bb_discovery_client_start(const char *applicationName, const char *sourceApplicationName,
+bb_discovery_result_t bb_discovery_client_start(const char *applicationName, const char *sourceApplicationName, const char *deviceCode,
                                                 u32 sourceIp, u32 searchIp, u16 searchPort)
 {
 	const u32 kDiscoveryTimeoutMillis = 500;
@@ -182,7 +183,7 @@ bb_discovery_result_t bb_discovery_client_start(const char *applicationName, con
 
 		if(now >= prevRequestTime + dc->discoveryRequestMillis) {
 			bb_discovery_send_request(discoverySocket, kBBDiscoveryPacketType_RequestDiscovery, applicationName,
-			                          sourceApplicationName, sourceIp, dc->reservationIp, dc->reservationPort);
+			                          sourceApplicationName, deviceCode, sourceIp, dc->reservationIp, dc->reservationPort);
 			prevRequestTime = now;
 		}
 
@@ -200,7 +201,7 @@ bb_discovery_result_t bb_discovery_client_start(const char *applicationName, con
 		//	send reservation request
 		bb_log("Sending reservation request");
 		bb_discovery_send_request(discoverySocket, kBBDiscoveryPacketType_RequestReservation, applicationName,
-		                          sourceApplicationName, sourceIp, serverIP, dc->reservationPort);
+		                          sourceApplicationName, deviceCode, sourceIp, serverIP, dc->reservationPort);
 
 		// wait for reservation response
 		reservationStartTime = bb_current_time_ms();

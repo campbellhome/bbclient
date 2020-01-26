@@ -27,9 +27,12 @@ typedef enum {
 	kBBDiscoveryPacketType_ReservationAccept,
 	kBBDiscoveryPacketType_ReservationRefuse,
 
+	kBBDiscoveryPacketType_RequestDiscovery_v2,
+	kBBDiscoveryPacketType_RequestReservation_v2,
+	kBBDiscoveryPacketType_DeclineReservation,
+
 	kBBDiscoveryPacketType_RequestDiscovery,
 	kBBDiscoveryPacketType_RequestReservation,
-	kBBDiscoveryPacketType_DeclineReservation,
 
 	kBBDiscoveryPacketType_Count
 } bb_discovery_packet_type_e;
@@ -39,6 +42,7 @@ typedef struct
 	u32 protocolVersion;
 	u32 sourceIp;
 	u32 platform;
+	char deviceCode[kBBSize_ApplicationName];
 	char sourceApplicationName[kBBSize_ApplicationName];
 	char applicationName[kBBSize_ApplicationName];
 } bb_packet_discovery_request_t;

@@ -63,6 +63,7 @@ static bb_connection_t s_con;
 static bb_critical_section s_id_cs;
 static bb_file_handle_t s_fp;
 static u64 s_lastFileFlushTime;
+static char s_deviceCode[kBBSize_ApplicationName];
 static char s_sourceApplicationName[kBBSize_ApplicationName];
 static char s_applicationName[kBBSize_ApplicationName];
 u32 g_bb_initFlags;
@@ -114,13 +115,15 @@ static BB_INLINE const char *bb_wcstombcs(const bb_wchar_t *wstr)
 	char *buffer = s_bb_wcstombcs_data.buffer[s_bb_wcstombcs_data.next++ % kBB_WCSToMBCS_NumSlots];
 	size_t bufferSize = sizeof(s_bb_wcstombcs_data.buffer[0]);
 	buffer[0] = '\0';
+	if(wstr) {
 #if BB_USING(BB_COMPILER_MSVC)
-	size_t numCharsConverted;
-	wcstombs_s(&numCharsConverted, buffer, bufferSize, wstr, _TRUNCATE);
+		size_t numCharsConverted;
+		wcstombs_s(&numCharsConverted, buffer, bufferSize, wstr, _TRUNCATE);
 #else
-	wcstombs(buffer, wstr, bufferSize);
-	buffer[bufferSize - 1] = '\0';
+		wcstombs(buffer, wstr, bufferSize);
+		buffer[bufferSize - 1] = '\0';
 #endif
+	}
 	return buffer;
 }
 
@@ -354,7 +357,7 @@ void bb_connect(uint32_t discoveryIp, uint16_t discoveryPort)
 	b32 bSocket = false;
 	if(discoveryIp && discoveryPort) {
 		bb_disconnect();
-		bb_discovery_result_t discovery = bb_discovery_client_start(s_applicationName, s_sourceApplicationName,
+		bb_discovery_result_t discovery = bb_discovery_client_start(s_applicationName, s_sourceApplicationName, s_deviceCode,
 		                                                            s_sourceIp, discoveryIp, discoveryPort);
 		if(discovery.serverIp) {
 			s_serverIp = discovery.serverIp;
@@ -371,7 +374,7 @@ void bb_connect(uint32_t discoveryIp, uint16_t discoveryPort)
 	}
 	if(!bbcon_is_connected(&s_con)) {
 		if((g_bb_initFlags & kBBInitFlag_NoDiscovery) == 0) {
-			bb_discovery_result_t discovery = bb_discovery_client_start(s_applicationName, s_sourceApplicationName,
+			bb_discovery_result_t discovery = bb_discovery_client_start(s_applicationName, s_sourceApplicationName, s_deviceCode,
 			                                                            s_sourceIp, 0, 0);
 			if(discovery.serverIp) {
 				s_serverIp = discovery.serverIp;
@@ -392,11 +395,15 @@ void bb_connect(uint32_t discoveryIp, uint16_t discoveryPort)
 	bb_critical_section_unlock(&s_id_cs);
 }
 
-void bb_init(const char *applicationName, const char *sourceApplicationName, uint32_t sourceIp, bb_init_flags_t initFlags)
+void bb_init(const char *applicationName, const char *sourceApplicationName, const char *deviceCode, uint32_t sourceIp, bb_init_flags_t initFlags)
 {
+	if(!deviceCode) {
+		deviceCode = "";
+	}
 	if(!sourceApplicationName) {
 		sourceApplicationName = "";
 	}
+	bb_strncpy(s_deviceCode, deviceCode, sizeof(s_deviceCode));
 	bb_strncpy(s_applicationName, applicationName, sizeof(s_applicationName));
 	bb_strncpy(s_sourceApplicationName, sourceApplicationName, sizeof(s_sourceApplicationName));
 	g_bb_initFlags = initFlags;
@@ -411,12 +418,12 @@ void bb_init(const char *applicationName, const char *sourceApplicationName, uin
 }
 
 #if BB_COMPILE_WIDECHAR
-void bb_init_w(const bb_wchar_t *applicationName, const bb_wchar_t *sourceApplicationName, uint32_t sourceIp, bb_init_flags_t initFlags)
+void bb_init_w(const bb_wchar_t *applicationName, const bb_wchar_t *sourceApplicationName, const bb_wchar_t *deviceCode, uint32_t sourceIp, bb_init_flags_t initFlags)
 {
 	if(!sourceApplicationName) {
 		sourceApplicationName = BB_WCHARS("");
 	}
-	bb_init(bb_wcstombcs(applicationName), bb_wcstombcs(sourceApplicationName), sourceIp, initFlags);
+	bb_init(bb_wcstombcs(applicationName), bb_wcstombcs(sourceApplicationName), bb_wcstombcs(deviceCode), sourceIp, initFlags);
 }
 #endif // #if BB_COMPILE_WIDECHAR
 

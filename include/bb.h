@@ -83,11 +83,11 @@ typedef enum {
 bb_platform_e bb_platform(void);
 const char *bb_platform_name(bb_platform_e platform);
 
-void bb_init(const char *applicationName, const char *sourceApplicationName, uint32_t sourceIp, bb_init_flags_t initFlags);
+void bb_init(const char *applicationName, const char *sourceApplicationName, const char *deviceCode, uint32_t sourceIp, bb_init_flags_t initFlags);
 void bb_init_file(const char *path);
 void bb_shutdown(const char *file, int line);
 #if BB_WIDECHAR
-void bb_init_w(const bb_wchar_t *applicationName, const bb_wchar_t *sourceApplicationName, uint32_t sourceIp, bb_init_flags_t initFlags);
+void bb_init_w(const bb_wchar_t *applicationName, const bb_wchar_t *sourceApplicationName, const bb_wchar_t *deviceCode, uint32_t sourceIp, bb_init_flags_t initFlags);
 void bb_init_file_w(const bb_wchar_t *path);
 #endif // #if BB_WIDECHAR
 
@@ -165,10 +165,10 @@ void bb_trace_partial_w(const char *path, uint32_t line, const bb_wchar_t *categ
 #endif // #else // #if BB_WIDECHAR
 
 #define BB_PREINIT(logPath) _BB_INIT_FILE_FUNC(logPath)
-#define BB_INIT(applicationName) _BB_INIT_FUNC(applicationName, 0, 0, 0u)
-#define BB_INIT_WITH_FLAGS(applicationName, flags) _BB_INIT_FUNC(applicationName, 0, 0, flags)
-#define BB_INIT_FROM_SOURCE(applicationName, sourceApplicationName, sourceIp) _BB_INIT_FUNC(applicationName, sourceApplicationName, sourceIp, 0u)
-#define BB_INIT_FROM_SOURCE_WITH_FLAGS(applicationName, sourceApplicationName, sourceIp, flags) _BB_INIT_FUNC(applicationName, sourceApplicationName, sourceIp, flags)
+#define BB_INIT(applicationName) _BB_INIT_FUNC(applicationName, 0, 0, 0, 0u)
+#define BB_INIT_WITH_FLAGS(applicationName, flags) _BB_INIT_FUNC(applicationName, 0, 0, 0, flags)
+#define BB_INIT_FROM_SOURCE(applicationName, sourceApplicationName, sourceIp) _BB_INIT_FUNC(applicationName, sourceApplicationName, 0, sourceIp, 0u)
+#define BB_INIT_FROM_SOURCE_WITH_FLAGS(applicationName, sourceApplicationName, sourceIp, flags) _BB_INIT_FUNC(applicationName, sourceApplicationName, 0, sourceIp, flags)
 #define BB_SHUTDOWN() bb_shutdown(__FILE__, __LINE__)
 
 #define BB_IS_CONNECTED() bb_is_connected()

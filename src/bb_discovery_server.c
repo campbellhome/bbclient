@@ -164,9 +164,11 @@ static const char *s_bb_discovery_packet_name[] = {
 	"kBBDiscoveryPacketType_AnnouncePresence",
 	"kBBDiscoveryPacketType_ReservationAccept",
 	"kBBDiscoveryPacketType_ReservationRefuse",
+	"kBBDiscoveryPacketType_RequestDiscovery_v2",
+	"kBBDiscoveryPacketType_RequestReservation_v2",
+	"kBBDiscoveryPacketType_DeclineReservation",
 	"kBBDiscoveryPacketType_RequestDiscovery",
 	"kBBDiscoveryPacketType_RequestReservation",
-	"kBBDiscoveryPacketType_DeclineReservation",
 };
 BB_CTASSERT(BB_ARRAYSIZE(s_bb_discovery_packet_name) == kBBDiscoveryPacketType_Count);
 
@@ -227,7 +229,9 @@ void bb_discovery_process_request(bb_discovery_server_t *ds, struct sockaddr_in 
 		break;
 	}
 
+	case kBBDiscoveryPacketType_RequestDiscovery_v2:
 	case kBBDiscoveryPacketType_RequestDiscovery_v1:
+	case kBBDiscoveryPacketType_RequestReservation_v2:
 	case kBBDiscoveryPacketType_RequestReservation_v1:
 	case kBBDiscoveryPacketType_DeclineReservation_v1:
 	case kBBDiscoveryPacketType_RequestDiscovery:

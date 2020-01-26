@@ -16,8 +16,11 @@ static b32 bb_discovery_packet_serialize_request(bb_serialize_t *ser, bb_decoded
 	bbserialize_buffer(ser, (char *)BB_PROTOCOL_IDENTIFIER, sizeof(BB_PROTOCOL_IDENTIFIER));
 	bbserialize_u32(ser, &source->packet.request.protocolVersion);
 	bbserialize_u32(ser, &source->packet.request.sourceIp);
-	if(source->type == kBBDiscoveryPacketType_RequestDiscovery) {
+	if(source->type == kBBDiscoveryPacketType_RequestDiscovery || source->type == kBBDiscoveryPacketType_RequestDiscovery_v1) {
 		bbserialize_u32(ser, &source->packet.request.platform);
+	}
+	if(source->type == kBBDiscoveryPacketType_RequestDiscovery || source->type == kBBDiscoveryPacketType_RequestReservation) {
+		bbserialize_text_(ser, source->packet.request.deviceCode, sizeof(source->packet.request.deviceCode), &len);
 	}
 	bbserialize_text_(ser, source->packet.request.sourceApplicationName, sizeof(source->packet.request.sourceApplicationName), &len);
 	return bbserialize_buffer(ser, &source->packet.request.applicationName, (u16)strlen(source->packet.request.applicationName));
@@ -37,10 +40,13 @@ static b32 bb_discovery_packet_deserialize_request(bb_serialize_t *ser, bb_decod
 
 	bbserialize_u32(ser, &decoded->packet.request.protocolVersion);
 	bbserialize_u32(ser, &decoded->packet.request.sourceIp);
-	if(decoded->type == kBBDiscoveryPacketType_RequestDiscovery) {
+	if(decoded->type == kBBDiscoveryPacketType_RequestDiscovery || decoded->type == kBBDiscoveryPacketType_RequestDiscovery_v1) {
 		bbserialize_u32(ser, &decoded->packet.request.platform);
 	} else {
 		decoded->packet.request.platform = kBBPlatform_Unknown;
+	}
+	if(decoded->type == kBBDiscoveryPacketType_RequestDiscovery || decoded->type == kBBDiscoveryPacketType_RequestReservation) {
+		bbserialize_text_(ser, decoded->packet.request.deviceCode, sizeof(decoded->packet.request.deviceCode), &len);
 	}
 	bbserialize_text_(ser, decoded->packet.request.sourceApplicationName, sizeof(decoded->packet.request.sourceApplicationName), &len);
 
@@ -89,8 +95,10 @@ b32 bb_discovery_packet_deserialize(s8 *buffer, u16 len, bb_decoded_discovery_pa
 	case kBBDiscoveryPacketType_ReservationRefuse:
 		return bb_discovery_packet_deserialize_response(&ser, decoded);
 
+	case kBBDiscoveryPacketType_RequestDiscovery_v2:
 	case kBBDiscoveryPacketType_RequestDiscovery_v1:
 	case kBBDiscoveryPacketType_RequestDiscovery:
+	case kBBDiscoveryPacketType_RequestReservation_v2:
 	case kBBDiscoveryPacketType_RequestReservation_v1:
 	case kBBDiscoveryPacketType_RequestReservation:
 		return bb_discovery_packet_deserialize_request(&ser, decoded);
@@ -118,8 +126,10 @@ u16 bb_discovery_packet_serialize(bb_decoded_discovery_packet_t *source, s8 *buf
 		bb_discovery_packet_serialize_response(&ser, source);
 		break;
 
+	case kBBDiscoveryPacketType_RequestDiscovery_v2:
 	case kBBDiscoveryPacketType_RequestDiscovery_v1:
 	case kBBDiscoveryPacketType_RequestDiscovery:
+	case kBBDiscoveryPacketType_RequestReservation_v2:
 	case kBBDiscoveryPacketType_RequestReservation_v1:
 	case kBBDiscoveryPacketType_RequestReservation:
 		bb_discovery_packet_serialize_request(&ser, source);

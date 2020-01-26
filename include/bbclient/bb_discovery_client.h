@@ -19,7 +19,7 @@ typedef struct bb_discovery_result_s {
 	u8 pad[2];
 } bb_discovery_result_t;
 
-bb_discovery_result_t bb_discovery_client_start(const char *applicationName, const char *sourceApplicationName,
+bb_discovery_result_t bb_discovery_client_start(const char *applicationName, const char *sourceApplicationName, const char *deviceCode,
                                                 u32 sourceIp, u32 searchIp, u16 searchPort);
 
 #if defined(__cplusplus)
