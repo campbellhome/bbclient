@@ -97,6 +97,7 @@ void bb_disconnect(void);
 int bb_is_connected(void);
 uint32_t bb_get_server_ip(void);
 uint16_t bb_get_server_port(void);
+void bb_set_send_interval_ms(uint64_t sendInterval);
 void bb_tick(void);
 void bb_flush(void);
 

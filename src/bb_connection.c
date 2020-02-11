@@ -43,6 +43,7 @@ void bbcon_init(bb_connection_t *con)
 	con->socket = BB_INVALID_SOCKET;
 	con->sendCursor = con->recvCursor = con->decodeCursor = 0;
 	con->prevSendTime = 0;
+	con->sendInterval = kBBCon_SendIntervalMillis;
 	con->flags = con->flags & (~(kBBCon_Client | kBBCon_Server));
 	con->state = kBBConnection_NotConnected;
 	if(!con->connectTimeoutInterval) {
@@ -120,7 +121,6 @@ b32 bbcon_connect_client_async(bb_connection_t *con, u32 remoteAddr, u16 remoteP
 	con->socket = testSocket;
 	con->flags |= kBBCon_Client;
 	con->state = kBBConnection_Connected;
-	//Send( NULL );
 	bbcon_flush(con);
 
 	return true;
@@ -207,7 +207,6 @@ b32 bbcon_connect_client(bb_connection_t *con, u32 remoteAddr, u16 remotePort, u
 	con->socket = testSocket;
 	con->flags |= kBBCon_Client;
 	con->state = kBBConnection_Connected;
-	//Send( NULL );
 	bbcon_flush(con);
 
 	return true;
@@ -303,7 +302,7 @@ b32 bbcon_tick_listening(bb_connection_t *con)
 	}
 
 	bbnet_socket_nodelay(clientSock, true);
-	bbnet_socket_nonblocking(clientSock, true); // #investigate: this wasn't set before
+	bbnet_socket_nonblocking(clientSock, true);
 
 	// We're connected!
 	BBCON_LOG("bbcon_connect_server success");
@@ -368,6 +367,10 @@ static void bbcon_flush_no_lock(bb_connection_t *con, b32 retry)
 					break;
 				}
 
+				if(!retry) {
+					break;
+				}
+
 				continue; // OS internal buffer is full temporarily, so we'll retry
 			}
 
@@ -386,6 +389,8 @@ static void bbcon_flush_no_lock(bb_connection_t *con, b32 retry)
 		}
 	}
 
+	u64 end = bb_current_time_ms();
+
 	if(nSendCursor < con->sendCursor) {
 		if(nSendCursor) {
 			memmove(con->sendBuffer, con->sendBuffer + nSendCursor, con->sendCursor - nSendCursor);
@@ -393,12 +398,11 @@ static void bbcon_flush_no_lock(bb_connection_t *con, b32 retry)
 		}
 	} else {
 		con->sendCursor = 0;
+		con->prevSendTime = end;
 	}
 
-	con->prevSendTime = bb_current_time_ms();
-
-	if(con->prevSendTime - start > 10) {
-		BBCON_WARNING("bb_flush took %" PRIu64 " ms", con->prevSendTime - start);
+	if(end - start > 10) {
+		BBCON_WARNING("bb_flush took %" PRIu64 " ms", end - start);
 	}
 }
 
@@ -465,7 +469,7 @@ static void _bbcon_send(bb_connection_t *con, const void *pData, u32 nBytes)
 	}
 
 	now = bb_current_time_ms();
-	if(now > con->prevSendTime + kBBCon_SendIntervalMillis) {
+	if(now >= con->prevSendTime + con->sendInterval) {
 		bbcon_flush_no_lock(con, false);
 	}
 }
@@ -645,13 +649,12 @@ b32 bbcon_decodePacket(bb_connection_t *con, bb_decoded_packet_t *decoded)
 void bbcon_tick(bb_connection_t *con)
 {
 	if(con->socket != BB_INVALID_SOCKET && con->cs.initialized) {
-		u64 now = bb_current_time_ms();
-		if(now > con->prevSendTime + kBBCon_SendIntervalMillis) {
-			bbcon_try_flush(con);
-		}
-
-		// #investigate why original impl didn't lock here
 		bb_critical_section_lock(&con->cs);
+
+		u64 now = bb_current_time_ms();
+		if(now >= con->prevSendTime + con->sendInterval) {
+			bbcon_flush_no_lock(con, false);
+		}
 
 		bbcon_receive(con);
 

@@ -454,6 +454,11 @@ int bb_is_connected(void)
 	return bbcon_is_connected(&s_con);
 }
 
+void bb_set_send_interval_ms(uint64_t sendInterval)
+{
+	s_con.sendInterval = sendInterval;
+}
+
 void bb_tick(void)
 {
 	bb_decoded_packet_t decoded;
