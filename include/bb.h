@@ -77,6 +77,7 @@ typedef enum {
 	kBBPlatform_Orbis,
 	kBBPlatform_Durango,
 	kBBPlatform_Nx,
+	kBBPlatform_DPX,
 	kBBPlatform_Count
 } bb_platform_e;
 
