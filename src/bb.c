@@ -191,8 +191,8 @@ bb_platform_e bb_platform(void)
 	return kBBPlatform_Durango;
 #elif BB_USING(BB_PLATFORM_NX)
 	return kBBPlatform_Nx;
-#elif BB_USING(BB_PLATFORM_DPX)
-	return kBBPlatform_DPX;
+#elif BB_USING(BB_PLATFORM_PROSPERO)
+	return kBBPlatform_Prospero;
 #else
 	BB_ASSERT(false);
 	return kBBPlatform_Unknown;
@@ -207,7 +207,7 @@ static const char *s_bb_platformNames[] = {
 	"PS4",      // kBBPlatform_Orbis,
 	"Xbox One", // kBBPlatform_Durango,
 	"Switch",   // kBBPlatform_Nx,
-	"DPX",      // kBBPlatform_DPX,
+	"Prospero", // kBBPlatform_Prospero,
 };
 BB_CTASSERT(BB_ARRAYSIZE(s_bb_platformNames) == kBBPlatform_Count);
 

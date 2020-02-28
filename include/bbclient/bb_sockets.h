@@ -20,14 +20,14 @@
 
 #include <arpa/inet.h>
 #include <errno.h>
-#if !BB_USING(BB_PLATFORM_ORBIS) && !BB_USING(BB_PLATFORM_DPX)
+#if !BB_USING(BB_PLATFORM_ORBIS) && !BB_USING(BB_PLATFORM_PROSPERO)
 #include <netdb.h>
-#endif // #if !BB_USING(BB_PLATFORM_ORBIS) && !BB_USING(BB_PLATFORM_DPX)
+#endif // #if !BB_USING(BB_PLATFORM_ORBIS) && !BB_USING(BB_PLATFORM_PROSPERO)
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-#if !BB_USING(BB_PLATFORM_ORBIS) && !BB_USING(BB_PLATFORM_DPX)
+#if !BB_USING(BB_PLATFORM_ORBIS) && !BB_USING(BB_PLATFORM_PROSPERO)
 #include <sys/ioctl.h>
-#endif // #if !BB_USING(BB_PLATFORM_ORBIS) && !BB_USING(BB_PLATFORM_DPX)
+#endif // #if !BB_USING(BB_PLATFORM_ORBIS) && !BB_USING(BB_PLATFORM_PROSPERO)
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/types.h>
