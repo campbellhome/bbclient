@@ -13,12 +13,22 @@
 
 bb_file_handle_t bb_file_open_for_write(const char *pathname)
 {
-	return CreateFileA(pathname, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+	// TODO: update calling code to check for a BB_INVALID_FILE_HANDLE which can be ~0u on windows
+	bb_file_handle_t handle = CreateFileA(pathname, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+	if(handle == INVALID_HANDLE_VALUE) {
+		handle = 0;
+	}
+	return handle;
 }
 
 bb_file_handle_t bb_file_open_for_read(const char *pathname)
 {
-	return CreateFileA(pathname, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+	// TODO: update calling code to check for a BB_INVALID_FILE_HANDLE which can be ~0u on windows
+	bb_file_handle_t handle = CreateFileA(pathname, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+	if(handle == INVALID_HANDLE_VALUE) {
+		handle = 0;
+	}
+	return handle;
 }
 
 u32 bb_file_write(bb_file_handle_t handle, void *data, u32 dataLen)
