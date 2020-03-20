@@ -15,6 +15,12 @@ extern "C" {
 
 typedef void *bb_file_handle_t;
 
+#if BB_USING(BB_COMPILER_MSVC)
+#define BB_INVALID_FILE_HANDLE ((bb_file_handle_t)~0)
+#else
+#define BB_INVALID_FILE_HANDLE ((bb_file_handle_t)0)
+#endif
+
 bb_file_handle_t bb_file_open_for_write(const char *pathname);
 bb_file_handle_t bb_file_open_for_read(const char *pathname);
 b32 bb_file_readable(const char *pathname);

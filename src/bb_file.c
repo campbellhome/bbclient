@@ -13,28 +13,18 @@
 
 bb_file_handle_t bb_file_open_for_write(const char *pathname)
 {
-	// TODO: update calling code to check for a BB_INVALID_FILE_HANDLE which can be ~0u on windows
-	bb_file_handle_t handle = CreateFileA(pathname, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
-	if(handle == INVALID_HANDLE_VALUE) {
-		handle = 0;
-	}
-	return handle;
+	return CreateFileA(pathname, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
 }
 
 bb_file_handle_t bb_file_open_for_read(const char *pathname)
 {
-	// TODO: update calling code to check for a BB_INVALID_FILE_HANDLE which can be ~0u on windows
-	bb_file_handle_t handle = CreateFileA(pathname, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-	if(handle == INVALID_HANDLE_VALUE) {
-		handle = 0;
-	}
-	return handle;
+	return CreateFileA(pathname, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 }
 
 u32 bb_file_write(bb_file_handle_t handle, void *data, u32 dataLen)
 {
 	DWORD written = 0;
-	if(handle) {
+	if(handle != BB_INVALID_FILE_HANDLE) {
 		WriteFile(handle, data, dataLen, &written, NULL);
 	}
 	return written;
@@ -64,14 +54,14 @@ u32 bb_file_size(bb_file_handle_t handle)
 
 void bb_file_close(bb_file_handle_t handle)
 {
-	if(handle) {
+	if(handle != BB_INVALID_FILE_HANDLE) {
 		CloseHandle(handle);
 	}
 }
 
 void bb_file_flush(bb_file_handle_t handle)
 {
-	if(handle) {
+	if(handle != BB_INVALID_FILE_HANDLE) {
 		FlushFileBuffers(handle);
 	}
 }
@@ -93,7 +83,7 @@ bb_file_handle_t bb_file_open_for_read(const char *pathname)
 u32 bb_file_write(bb_file_handle_t handle, void *data, u32 dataLen)
 {
 	u32 written = 0;
-	if(handle) {
+	if(handle != BB_INVALID_FILE_HANDLE) {
 		FILE *fp = (FILE *)handle;
 		written = (u32)fwrite(data, 1, dataLen, fp);
 	}
@@ -117,7 +107,7 @@ u32 bb_file_size(bb_file_handle_t handle)
 
 void bb_file_close(bb_file_handle_t handle)
 {
-	if(handle) {
+	if(handle != BB_INVALID_FILE_HANDLE) {
 		FILE *fp = (FILE *)handle;
 		fclose(fp);
 	}
@@ -125,7 +115,7 @@ void bb_file_close(bb_file_handle_t handle)
 
 void bb_file_flush(bb_file_handle_t handle)
 {
-	if(handle) {
+	if(handle != BB_INVALID_FILE_HANDLE) {
 		FILE *fp = (FILE *)handle;
 		fflush(fp);
 	}
@@ -136,10 +126,12 @@ void bb_file_flush(bb_file_handle_t handle)
 b32 bb_file_readable(const char *pathname)
 {
 	bb_file_handle_t handle = bb_file_open_for_read(pathname);
-	if(handle) {
+	if(handle != BB_INVALID_FILE_HANDLE) {
 		bb_file_close(handle);
+		return true;
+	} else {
+		return false;
 	}
-	return handle != 0;
 }
 
 #endif // #if BB_ENABLED

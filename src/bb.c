@@ -61,7 +61,7 @@ static bb_ids_t s_bb_categoryIds;
 static bb_ids_t s_bb_pathIds;
 static bb_connection_t s_con;
 static bb_critical_section s_id_cs;
-static bb_file_handle_t s_fp;
+static bb_file_handle_t s_fp = BB_INVALID_FILE_HANDLE;
 static u64 s_lastFileFlushTime;
 static char s_deviceCode[kBBSize_ApplicationName];
 static char s_sourceApplicationName[kBBSize_ApplicationName];
@@ -278,7 +278,7 @@ static void bb_send_initial(b32 bCallbacks, b32 bSocket, b32 bFile)
 
 void bb_init_file(const char *path)
 {
-	if(!s_fp) {
+	if(s_fp == BB_INVALID_FILE_HANDLE) {
 		s_fp = bb_file_open_for_write(path);
 
 		if(s_id_cs.initialized) {
@@ -435,9 +435,9 @@ void bb_shutdown(const char *file, int line)
 	uint32_t bb_path_id = 0;
 	bb_resolve_path_id(file, &bb_path_id, (uint32_t)line);
 	bb_thread_end(bb_path_id, line);
-	if(s_fp) {
+	if(s_fp != BB_INVALID_FILE_HANDLE) {
 		bb_file_close(s_fp);
-		s_fp = NULL;
+		s_fp = BB_INVALID_FILE_HANDLE;
 	}
 	bbcon_flush(&s_con);
 	bbcon_shutdown(&s_con);
@@ -466,13 +466,13 @@ void bb_tick(void)
 {
 	bb_decoded_packet_t decoded;
 	bbcon_tick(&s_con);
-	if(s_fp || s_bb_flush_callback) {
+	if(s_fp != BB_INVALID_FILE_HANDLE || s_bb_flush_callback) {
 		u64 now = bb_current_time_ms();
 		if(now > s_lastFileFlushTime + kBBFile_FlushIntervalMillis) {
 			if(s_bb_flush_callback) {
 				(*s_bb_flush_callback)(s_bb_flush_callback_context);
 			}
-			if(s_fp) {
+			if(s_fp != BB_INVALID_FILE_HANDLE) {
 				bb_file_flush(s_fp);
 			}
 		}
@@ -490,7 +490,7 @@ void bb_flush(void)
 	if(s_bb_flush_callback) {
 		(*s_bb_flush_callback)(s_bb_flush_callback_context);
 	}
-	if(s_fp) {
+	if(s_fp != BB_INVALID_FILE_HANDLE) {
 		bb_file_flush(s_fp);
 	}
 	bbcon_flush(&s_con);
