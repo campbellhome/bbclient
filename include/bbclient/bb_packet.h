@@ -69,7 +69,7 @@ typedef struct bb_packet_text_s {
 typedef struct bb_packet_log_text_s {
 	u32 categoryId;
 	u32 level;
-	u32 pieInstance;
+	s32 pieInstance;
 	bb_colors_t colors;
 	char text[kBBSize_LogText];
 } bb_packet_log_text_t;

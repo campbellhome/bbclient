@@ -114,7 +114,7 @@ static b32 bbpacket_serialize_log_text(bb_serialize_t *ser, bb_decoded_packet_t 
 {
 	bbserialize_u32(ser, &decoded->packet.logText.categoryId);
 	bbserialize_u32(ser, &decoded->packet.logText.level);
-	bbserialize_u32(ser, &decoded->packet.logText.pieInstance);
+	bbserialize_s32(ser, &decoded->packet.logText.pieInstance);
 	bbserialize_s32(ser, (s32 *)&decoded->packet.logText.colors.fg);
 	bbserialize_s32(ser, (s32 *)&decoded->packet.logText.colors.bg);
 	return bbserialize_remaining_text(ser, decoded->packet.logText.text);

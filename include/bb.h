@@ -131,17 +131,17 @@ void bb_resolve_path_id(const char *path, uint32_t *pathId, uint32_t line);
 uint32_t bb_resolve_ids_w(const char *path, const bb_wchar_t *category, uint32_t *pathId, uint32_t *categoryId, uint32_t line);
 #endif // #if BB_WIDECHAR
 
-void bb_trace(uint32_t pathId, uint32_t line, uint32_t categoryId, bb_log_level_e level, uint32_t pieInstance, const char *fmt, ...);
-void bb_trace_dynamic(const char *path, uint32_t line, const char *category, bb_log_level_e level, uint32_t pieInstance, const char *fmt, ...);
-void bb_trace_dynamic_preformatted(const char *path, uint32_t line, const char *category, bb_log_level_e level, uint32_t pieInstance, const char *preformatted);
-void bb_trace_partial(const char *path, uint32_t line, const char *category, bb_log_level_e level, uint32_t pieInstance, const char *fmt, ...);
+void bb_trace(uint32_t pathId, uint32_t line, uint32_t categoryId, bb_log_level_e level, int32_t pieInstance, const char *fmt, ...);
+void bb_trace_dynamic(const char *path, uint32_t line, const char *category, bb_log_level_e level, int32_t pieInstance, const char *fmt, ...);
+void bb_trace_dynamic_preformatted(const char *path, uint32_t line, const char *category, bb_log_level_e level, int32_t pieInstance, const char *preformatted);
+void bb_trace_partial(const char *path, uint32_t line, const char *category, bb_log_level_e level, int32_t pieInstance, const char *fmt, ...);
 void bb_trace_partial_end(void);
 
 #if BB_WIDECHAR
-void bb_trace_w(uint32_t pathId, uint32_t line, uint32_t categoryId, bb_log_level_e level, uint32_t pieInstance, const bb_wchar_t *fmt, ...);
-void bb_trace_dynamic_w(const char *path, uint32_t line, const bb_wchar_t *category, bb_log_level_e level, uint32_t pieInstance, const bb_wchar_t *fmt, ...);
-void bb_trace_dynamic_preformatted_w(const char *path, uint32_t line, const bb_wchar_t *category, bb_log_level_e level, uint32_t pieInstance, const bb_wchar_t *preformatted);
-void bb_trace_partial_w(const char *path, uint32_t line, const bb_wchar_t *category, bb_log_level_e level, uint32_t pieInstance, const bb_wchar_t *fmt, ...);
+void bb_trace_w(uint32_t pathId, uint32_t line, uint32_t categoryId, bb_log_level_e level, int32_t pieInstance, const bb_wchar_t *fmt, ...);
+void bb_trace_dynamic_w(const char *path, uint32_t line, const bb_wchar_t *category, bb_log_level_e level, int32_t pieInstance, const bb_wchar_t *fmt, ...);
+void bb_trace_dynamic_preformatted_w(const char *path, uint32_t line, const bb_wchar_t *category, bb_log_level_e level, int32_t pieInstance, const bb_wchar_t *preformatted);
+void bb_trace_partial_w(const char *path, uint32_t line, const bb_wchar_t *category, bb_log_level_e level, int32_t pieInstance, const bb_wchar_t *fmt, ...);
 #endif // #if BB_WIDECHAR
 
 #if BB_WIDECHAR
