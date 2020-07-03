@@ -178,6 +178,7 @@ b32 bbpacket_deserialize(u8 *buffer, u16 len, bb_decoded_packet_t *decoded)
 
 	case kBBPacketType_Invalid:
 	case kBBPacketType_Restart:
+	case kBBPacketType_StopRecording:
 	default:
 		return false;
 	}
@@ -246,6 +247,7 @@ u16 bbpacket_serialize(bb_decoded_packet_t *source, u8 *buffer, u16 len)
 
 	case kBBPacketType_Invalid:
 	case kBBPacketType_Restart:
+	case kBBPacketType_StopRecording:
 	default:
 		BB_ASSERT(false);
 		return 0;
