@@ -22,8 +22,18 @@ extern "C" {
 
 #if BB_ENABLED
 
+#if defined(_MSC_VER)
+// sigh, VC 2019 16.4 throws C4668 in vcruntime.h, included from stdint.h
+__pragma(warning(push))
+__pragma(warning(disable : 4668))
+#endif // defined(_MSC_VER)
+
 #define __STDC_FORMAT_MACROS // explicitly request PRIu64 etc
 #include <stdint.h>
+
+#if defined(_MSC_VER)
+__pragma(warning(pop))
+#endif // defined(_MSC_VER)
 
 #if BB_COMPILE_WIDECHAR
 #if defined(BB_WIDE_CHAR16) && BB_WIDE_CHAR16
