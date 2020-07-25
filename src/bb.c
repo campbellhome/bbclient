@@ -358,7 +358,7 @@ void bb_connect(uint32_t discoveryIp, uint16_t discoveryPort)
 	b32 bFile = !s_bFileSentAppInfo;
 	s_bFileSentAppInfo = true;
 	b32 bSocket = false;
-	if(discoveryIp && discoveryPort) {
+	if(discoveryIp || discoveryPort) {
 		bb_disconnect();
 		bb_discovery_result_t discovery = bb_discovery_client_start(s_applicationName, s_sourceApplicationName, s_deviceCode,
 		                                                            s_sourceIp, discoveryIp, discoveryPort);
@@ -417,7 +417,11 @@ void bb_init(const char *applicationName, const char *sourceApplicationName, con
 	s_con.flags |= kBBCon_Blackbox;
 	s_sourceIp = sourceIp;
 
+#if BB_USING(BB_PLATFORM_WINDOWS)
+	bb_connect((127 << 24) | 1, 0);
+#else
 	bb_connect(0, 0);
+#endif
 }
 
 #if BB_COMPILE_WIDECHAR
