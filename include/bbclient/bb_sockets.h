@@ -9,10 +9,10 @@
 
 #include "bb_common.h"
 
-#if BB_USING(BB_PLATFORM_DURANGO)
+#if BB_USING(BB_PLATFORM_DURANGO) || BB_USING(BB_PLATFORM_SCARLETT)
 #include <WS2tcpip.h>
 #include <winsock2.h>
-#endif // #if BB_USING(BB_PLATFORM_DURANGO)
+#endif // #if BB_USING(BB_PLATFORM_DURANGO) || BB_USING(BB_PLATFORM_SCARLETT)
 
 #if BB_USING(BB_COMPILER_MSVC)
 
