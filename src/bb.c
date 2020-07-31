@@ -193,6 +193,8 @@ bb_platform_e bb_platform(void)
 	return kBBPlatform_Nx;
 #elif BB_USING(BB_PLATFORM_PROSPERO)
 	return kBBPlatform_Prospero;
+#elif BB_USING(BB_PLATFORM_SCARLETT)
+	return kBBPlatform_Scarlett;
 #else
 	BB_ASSERT(false);
 	return kBBPlatform_Unknown;
@@ -208,6 +210,7 @@ static const char *s_bb_platformNames[] = {
 	"Xbox One", // kBBPlatform_Durango,
 	"Switch",   // kBBPlatform_Nx,
 	"Prospero", // kBBPlatform_Prospero,
+	"Scarlett", // kBBPlatform_Scarlett,
 };
 BB_CTASSERT(BB_ARRAYSIZE(s_bb_platformNames) == kBBPlatform_Count);
 

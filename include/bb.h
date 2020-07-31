@@ -88,6 +88,7 @@ typedef enum {
 	kBBPlatform_Durango,
 	kBBPlatform_Nx,
 	kBBPlatform_Prospero,
+	kBBPlatform_Scarlett,
 	kBBPlatform_Count
 } bb_platform_e;
 
