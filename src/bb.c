@@ -147,17 +147,21 @@ static BB_INLINE const char *bb_wcstombcs_inline(const bb_wchar_t *wstr, char *b
 
 static BB_INLINE void bb_init_locale(void)
 {
+#if BB_USING(BB_COMPILER_MSVC)
 	if(!s_utf8_locale) {
 		s_utf8_locale = _create_locale(LC_ALL, ".utf8");
 	}
+#endif
 }
 
 static BB_INLINE void bb_shutdown_locale(void)
 {
+#if BB_USING(BB_COMPILER_MSVC)
 	if(s_utf8_locale) {
 		_free_locale(s_utf8_locale);
 		s_utf8_locale = NULL;
 	}
+#endif
 }
 #else  // #if BB_COMPILE_WIDECHAR && !(defined(BB_USER_WCSTOMBCS) && BB_USER_WCSTOMBCS)
 static BB_INLINE void bb_init_locale(void)
