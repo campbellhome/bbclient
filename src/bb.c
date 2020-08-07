@@ -102,6 +102,10 @@ enum {
 };
 
 #if BB_COMPILE_WIDECHAR && !(defined(BB_USER_WCSTOMBCS) && BB_USER_WCSTOMBCS)
+#if BB_USING(BB_COMPILER_MSVC)
+#include <locale.h>
+static _locale_t s_utf8_locale;
+#endif
 enum { kBB_WCSToMBCS_NumSlots = 4 };
 typedef struct
 {
@@ -118,7 +122,7 @@ static BB_INLINE const char *bb_wcstombcs(const bb_wchar_t *wstr)
 	if(wstr) {
 #if BB_USING(BB_COMPILER_MSVC)
 		size_t numCharsConverted;
-		wcstombs_s(&numCharsConverted, buffer, bufferSize, wstr, _TRUNCATE);
+		_wcstombs_s_l(&numCharsConverted, buffer, bufferSize, wstr, _TRUNCATE, s_utf8_locale);
 #else
 		wcstombs(buffer, wstr, bufferSize);
 		buffer[bufferSize - 1] = '\0';
@@ -131,7 +135,7 @@ static BB_INLINE const char *bb_wcstombcs_inline(const bb_wchar_t *wstr, char *b
 {
 	buffer[0] = '\0';
 #if BB_USING(BB_COMPILER_MSVC)
-	wcstombs_s(numCharsConverted, buffer, bufferSize, wstr, _TRUNCATE);
+	_wcstombs_s_l(numCharsConverted, buffer, bufferSize, wstr, _TRUNCATE, s_utf8_locale);
 #else
 	*numCharsConverted = 1 + wcstombs(buffer, wstr, bufferSize);
 	if(*numCharsConverted) {
@@ -141,7 +145,29 @@ static BB_INLINE const char *bb_wcstombcs_inline(const bb_wchar_t *wstr, char *b
 	return buffer;
 }
 
-#endif // #if BB_COMPILE_WIDECHAR && !(defined(BB_USER_WCSTOMBCS) && BB_USER_WCSTOMBCS)
+static BB_INLINE void bb_init_locale(void)
+{
+	if(!s_utf8_locale) {
+		s_utf8_locale = _create_locale(LC_ALL, ".utf8");
+	}
+}
+
+static BB_INLINE void bb_shutdown_locale(void)
+{
+	if(s_utf8_locale) {
+		_free_locale(s_utf8_locale);
+		s_utf8_locale = NULL;
+	}
+}
+#else  // #if BB_COMPILE_WIDECHAR && !(defined(BB_USER_WCSTOMBCS) && BB_USER_WCSTOMBCS)
+static BB_INLINE void bb_init_locale(void)
+{
+}
+
+static BB_INLINE void bb_shutdown_locale(void)
+{
+}
+#endif // #else // #if BB_COMPILE_WIDECHAR && !(defined(BB_USER_WCSTOMBCS) && BB_USER_WCSTOMBCS)
 
 static BB_INLINE void bb_fill_header(bb_decoded_packet_t *decoded, bb_packet_type_e packetType, u32 pathId, u32 line)
 {
@@ -281,6 +307,7 @@ static void bb_send_initial(b32 bCallbacks, b32 bSocket, b32 bFile)
 
 void bb_init_file(const char *path)
 {
+	bb_init_locale();
 	if(s_fp == BB_INVALID_FILE_HANDLE) {
 		s_fp = bb_file_open_for_write(path);
 
@@ -296,6 +323,7 @@ void bb_init_file(const char *path)
 #if BB_COMPILE_WIDECHAR
 void bb_init_file_w(const bb_wchar_t *path)
 {
+	bb_init_locale();
 	bb_init_file(bb_wcstombcs(path));
 }
 #endif // #if BB_COMPILE_WIDECHAR
@@ -403,6 +431,7 @@ void bb_connect(uint32_t discoveryIp, uint16_t discoveryPort)
 
 void bb_init(const char *applicationName, const char *sourceApplicationName, const char *deviceCode, uint32_t sourceIp, bb_init_flags_t initFlags)
 {
+	bb_init_locale();
 	if(!deviceCode) {
 		deviceCode = "";
 	}
@@ -430,6 +459,7 @@ void bb_init(const char *applicationName, const char *sourceApplicationName, con
 #if BB_COMPILE_WIDECHAR
 void bb_init_w(const bb_wchar_t *applicationName, const bb_wchar_t *sourceApplicationName, const bb_wchar_t *deviceCode, uint32_t sourceIp, bb_init_flags_t initFlags)
 {
+	bb_init_locale();
 	if(!sourceApplicationName) {
 		sourceApplicationName = BB_WCHARS("");
 	}
@@ -457,6 +487,7 @@ void bb_shutdown(const char *file, int line)
 		free(s_bb_trace_packet_buffer);
 		s_bb_trace_packet_buffer = NULL;
 	}
+	bb_shutdown_locale();
 }
 
 int bb_is_connected(void)

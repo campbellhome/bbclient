@@ -68,6 +68,7 @@ int main(int argc, const char **argv)
 	BB_LOG(L"testa::bob", L"george");
 	BB_ERROR(L"testa", L"chuck");
 	BB_LOG(L"standalone::nested::category", L"standalone::nested::category");
+	BB_LOG(L"test::unicode", L"Sofía");
 
 	start = bb_current_time_ms();
 	while(BB_IS_CONNECTED()) {
