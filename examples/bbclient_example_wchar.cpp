@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2019 Matt Campbell
+﻿// Copyright (c) 2012-2019 Matt Campbell
 // MIT license (see License.txt)
 
 #define BB_WIDECHAR 1
@@ -68,7 +68,21 @@ int main(int argc, const char **argv)
 	BB_LOG(L"testa::bob", L"george");
 	BB_ERROR(L"testa", L"chuck");
 	BB_LOG(L"standalone::nested::category", L"standalone::nested::category");
-	BB_LOG(L"test::unicode", L"Sof�a");
+	BB_LOG(L"test::unicode::wchar_t", L"Sofía");
+	BB_LOG(L"test::unicode::wchar_t", L"(╯°□°）╯︵ ┻━┻");
+	BB_LOG(L"test::unicode::wchar_t", L"✨✔");
+	BB_LOG(L"test::unicode::utf16", (const bb_wchar_t *)u"Sofía");
+	BB_LOG(L"test::unicode::utf16", (const bb_wchar_t *)u"(╯°□°）╯︵ ┻━┻");
+	BB_LOG(L"test::unicode::utf16", (const bb_wchar_t *)u"✨✔");
+	BB_LOG_A("test::unicode::utf8", u8"Sofía");
+	BB_LOG_A("test::unicode::utf8", u8"(╯°□°）╯︵ ┻━┻");
+	BB_LOG_A("test::unicode::utf8", u8"✨✔");
+	BB_LOG_A("test::unicode::utf8", u8"™");
+	BB_LOG_A("test::unicode::utf8", u8"\u2728\u2714"); // ✨✔
+	BB_LOG_A("test::unicode::utf8", u8"\uff09"); // ）
+	BB_LOG_A("test::unicode::utf8", u8"\ufe35"); // ︵
+	BB_LOG_A("test::unicode::utf8", u8"\u2728"); // ✨
+	BB_LOG_A("test::unicode::utf8", u8"\u2122"); // ™
 
 	start = bb_current_time_ms();
 	while(BB_IS_CONNECTED()) {
