@@ -125,6 +125,13 @@ static b32 bbpacket_serialize_frameend(bb_serialize_t *ser, bb_decoded_packet_t 
 	return bbserialize_double(ser, &decoded->packet.frameEnd.milliseconds);
 }
 
+static b32 bbpacket_serialize_recording_info(bb_serialize_t *ser, bb_decoded_packet_t *decoded)
+{
+	u16 len = 0;
+	bbserialize_text(ser, decoded->packet.recordingInfo.machineName, &len);
+	return bbserialize_text(ser, decoded->packet.recordingInfo.recordingName, &len);
+}
+
 b32 bbpacket_deserialize(u8 *buffer, u16 len, bb_decoded_packet_t *decoded)
 {
 	u8 type;
@@ -175,6 +182,9 @@ b32 bbpacket_deserialize(u8 *buffer, u16 len, bb_decoded_packet_t *decoded)
 	case kBBPacketType_UserToServer:
 	case kBBPacketType_UserToClient:
 		return bbpacket_serialize_user(&ser, decoded);
+
+	case kBBPacketType_RecordingInfo:
+		return bbpacket_serialize_recording_info(&ser, decoded);
 
 	case kBBPacketType_Invalid:
 	case kBBPacketType_Restart:
@@ -243,6 +253,10 @@ u16 bbpacket_serialize(bb_decoded_packet_t *source, u8 *buffer, u16 len)
 	case kBBPacketType_UserToServer:
 	case kBBPacketType_UserToClient:
 		bbpacket_serialize_user(&ser, source);
+		break;
+
+	case kBBPacketType_RecordingInfo:
+		bbpacket_serialize_recording_info(&ser, source);
 		break;
 
 	case kBBPacketType_Invalid:

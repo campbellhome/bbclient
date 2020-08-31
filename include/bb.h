@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2019 Matt Campbell
+// Copyright (c) 2012-2020 Matt Campbell
 // MIT license (see License.txt)
 
 #ifndef BB_H
@@ -54,6 +54,8 @@ enum {
 	kBBSize_Category = 128,
 	kBBSize_MaxPath = 2048,
 	kBBSize_LogText = 2048,
+	kBBSize_MachineName = 256,
+	kBBSize_RecordingName = 256,
 };
 
 typedef enum {
@@ -76,6 +78,7 @@ typedef enum {
 	kBBInitFlag_DebugInit = 0x2, // printf/OutputDebugString initial connection logging
 	kBBInitFlag_ConsoleCommands = 0x4,
 	kBBInitFlag_NoDiscovery = 0x8,
+	kBBInitFlag_RecordingInfo = 0x10,
 } bb_init_flag_e;
 typedef uint32_t bb_init_flags_t;
 

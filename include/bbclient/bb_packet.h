@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2019 Matt Campbell
+// Copyright (c) 2012-2020 Matt Campbell
 // MIT license (see License.txt)
 
 #pragma once
@@ -44,6 +44,8 @@ typedef enum {
 	kBBPacketType_Restart,       // Not serialized or sent - used internally
 	kBBPacketType_StopRecording, // Not serialized or sent - used internally
 
+	kBBPacketType_RecordingInfo, // Server --> Client
+
 } bb_packet_type_e;
 
 typedef struct bb_packet_header_s {
@@ -88,6 +90,11 @@ typedef struct bb_packet_frame_end_s {
 	double milliseconds;
 } bb_packet_frame_end_t;
 
+typedef struct bb_packet_recording_info_s {
+	char machineName[kBBSize_MachineName];
+	char recordingName[kBBSize_RecordingName];
+} bb_packet_recording_info_t;
+
 typedef struct bb_decoded_packet_s {
 	bb_packet_type_e type;
 	u8 pad[4];
@@ -108,6 +115,8 @@ typedef struct bb_decoded_packet_s {
 		bb_packet_register_id_t registerId;
 		bb_packet_text_t text;
 		bb_packet_user_t user;
+
+		bb_packet_recording_info_t recordingInfo;
 	} packet;
 } bb_decoded_packet_t;
 
