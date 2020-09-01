@@ -24,15 +24,15 @@ extern "C" {
 
 #if defined(_MSC_VER)
 // sigh, VC 2019 16.4 throws C4668 in vcruntime.h, included from stdint.h
-__pragma(warning(push))
-__pragma(warning(disable : 4668))
+__pragma(warning(push));
+__pragma(warning(disable : 4668));
 #endif // defined(_MSC_VER)
 
 #define __STDC_FORMAT_MACROS // explicitly request PRIu64 etc
 #include <stdint.h>
 
 #if defined(_MSC_VER)
-__pragma(warning(pop))
+__pragma(warning(pop));
 #endif // defined(_MSC_VER)
 
 #if BB_COMPILE_WIDECHAR
@@ -127,9 +127,9 @@ typedef void (*bb_send_callback)(void *context, bb_decoded_packet_t *decoded);
 void bb_set_send_callback(bb_send_callback callback, void *context);
 void bb_echo_to_stdout(void *context, bb_decoded_packet_t *decoded);
 
-typedef void (*bb_incoming_console_command_handler)(const char *command, void *context);
-void bb_set_incoming_console_command_handler(bb_incoming_console_command_handler handler, void *context);
-#define BB_SET_INCOMING_CONSOLE_COMMAND_HANDLER(handler, context) bb_set_incoming_console_command_handler((handler), (context))
+typedef void (*bb_incoming_packet_handler)(const bb_decoded_packet_t *decoded, void *context);
+void bb_set_incoming_packet_handler(bb_incoming_packet_handler handler, void *context);
+#define BB_SET_INCOMING_PACKET_HANDLER(handler, context) bb_set_incoming_packet_handler((handler), (context))
 
 void bb_thread_start(uint32_t pathId, uint32_t line, const char *name);
 void bb_thread_set_name(uint32_t pathId, uint32_t line, const char *name);

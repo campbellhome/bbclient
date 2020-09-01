@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2019 Matt Campbell
+// Copyright (c) 2012-2020 Matt Campbell
 // MIT license (see License.txt)
 
 #if defined(_MSC_VER)
@@ -78,8 +78,8 @@ static bb_flush_callback s_bb_flush_callback;
 static void *s_bb_flush_callback_context;
 static bb_send_callback s_bb_send_callback;
 static void *s_bb_send_callback_context;
-static bb_incoming_console_command_handler s_bb_console_command_handler;
-static void *s_bb_console_command_context;
+static bb_incoming_packet_handler s_bb_incoming_packet_handler;
+static void *s_bb_incoming_packet_context;
 
 typedef struct bbtraceBuffer_s {
 	char packetBuffer[16 * 1024];
@@ -521,8 +521,8 @@ void bb_tick(void)
 	}
 	while(bbcon_decodePacket(&s_con, &decoded)) {
 		// handle server->client packet here - callback to application
-		if(decoded.type == kBBPacketType_ConsoleCommand && s_bb_console_command_handler) {
-			(*s_bb_console_command_handler)(decoded.packet.consoleCommand.text, s_bb_console_command_context);
+		if(s_bb_incoming_packet_handler) {
+			(*s_bb_incoming_packet_handler)(&decoded, s_bb_incoming_packet_context);
 		}
 	}
 }
@@ -587,10 +587,10 @@ void bb_set_send_callback(bb_send_callback callback, void *context)
 	s_bb_send_callback_context = context;
 }
 
-void bb_set_incoming_console_command_handler(bb_incoming_console_command_handler handler, void *context)
+void bb_set_incoming_packet_handler(bb_incoming_packet_handler handler, void *context)
 {
-	s_bb_console_command_handler = handler;
-	s_bb_console_command_context = context;
+	s_bb_incoming_packet_handler = handler;
+	s_bb_incoming_packet_context = context;
 }
 
 void bb_thread_start(uint32_t pathId, uint32_t line, const char *name)
