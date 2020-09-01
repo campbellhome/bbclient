@@ -7,7 +7,7 @@
 
 #if BB_ENABLED
 
-#include "bb_common.h"
+#include "bb_types.h"
 
 #if defined(__cplusplus)
 extern "C" {
