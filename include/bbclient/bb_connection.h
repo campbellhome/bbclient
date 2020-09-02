@@ -36,6 +36,8 @@ typedef struct bb_connection_s {
 	u8 sendBuffer[8192];
 	u8 recvBuffer[32768];
 	bb_critical_section cs;
+	u64 sentBytesTotal;
+	u64 receivedBytesTotal;
 	u64 prevSendTime;
 	u64 sendInterval;
 	u64 connectTimeoutTime;

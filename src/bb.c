@@ -538,6 +538,28 @@ void bb_flush(void)
 	bbcon_flush(&s_con);
 }
 
+uint64_t bb_get_total_bytes_sent(void)
+{
+	uint64_t bytes = 0;
+	if(bbcon_is_connected(&s_con)) {
+		bb_critical_section_lock(&s_con.cs);
+		bytes = s_con.sentBytesTotal;
+		bb_critical_section_unlock(&s_con.cs);
+	}
+	return bytes;
+}
+
+uint64_t bb_get_total_bytes_received(void)
+{
+	uint64_t bytes = 0;
+	if(bbcon_is_connected(&s_con)) {
+		bb_critical_section_lock(&s_con.cs);
+		bytes = s_con.receivedBytesTotal;
+		bb_critical_section_unlock(&s_con.cs);
+	}
+	return bytes;
+}
+
 void bb_echo_to_stdout(void *context, bb_decoded_packet_t *decoded)
 {
 	BB_UNUSED(context);

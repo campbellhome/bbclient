@@ -40,6 +40,7 @@ enum {
 void bbcon_init(bb_connection_t *con)
 {
 	bb_critical_section_init(&con->cs);
+	con->sentBytesTotal = con->receivedBytesTotal = 0u;
 	con->socket = BB_INVALID_SOCKET;
 	con->sendCursor = con->recvCursor = con->decodeCursor = 0;
 	con->prevSendTime = 0;
@@ -60,6 +61,7 @@ void bbcon_shutdown(bb_connection_t *con)
 void bbcon_reset(bb_connection_t *con)
 {
 	bbcon_disconnect(con);
+	con->sentBytesTotal = con->receivedBytesTotal = 0u;
 	con->sendCursor = con->recvCursor = con->decodeCursor = 0;
 	con->prevSendTime = 0;
 	con->flags = con->flags = con->flags & (~(kBBCon_Client | kBBCon_Server));
@@ -382,6 +384,7 @@ static void bbcon_flush_no_lock(bb_connection_t *con, b32 retry)
 				break;
 			}
 
+			con->sentBytesTotal += ret;
 			nSendCursor += ret;
 			if(!retry) {
 				break;
@@ -595,6 +598,7 @@ static void bbcon_receive(bb_connection_t *con)
 			return;
 		}
 
+		con->receivedBytesTotal += nBytesReceived;
 		con->recvCursor += nBytesReceived;
 
 		//BBCON_LOG( "bbcon_receive nBytesReceived:%d decodeCursor:%d recvCursor:%d", nBytesReceived, con->decodeCursor, con->recvCursor );

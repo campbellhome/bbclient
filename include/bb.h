@@ -115,6 +115,8 @@ uint16_t bb_get_server_port(void);
 void bb_set_send_interval_ms(uint64_t sendInterval);
 void bb_tick(void);
 void bb_flush(void);
+uint64_t bb_get_total_bytes_sent(void);
+uint64_t bb_get_total_bytes_received(void);
 
 typedef void (*bb_write_callback)(void *context, void *data, uint32_t len);
 void bb_set_write_callback(bb_write_callback callback, void *context);
