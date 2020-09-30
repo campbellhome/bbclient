@@ -39,7 +39,7 @@ u64 bb_get_current_thread_id(void)
 {
 #if BB_USING(BB_PLATFORM_LINUX)
 	return syscall(SYS_gettid);
-#else  // #if BB_USING(BB_PLATFORM_LINUX)
+#else // #if BB_USING(BB_PLATFORM_LINUX)
 	return (u64)pthread_self();
 #endif // #else // #if BB_USING(BB_PLATFORM_LINUX)
 }
@@ -163,7 +163,7 @@ static BB_INLINE void bb_shutdown_locale(void)
 	}
 #endif
 }
-#else  // #if BB_COMPILE_WIDECHAR && !(defined(BB_USER_WCSTOMBCS) && BB_USER_WCSTOMBCS)
+#else // #if BB_COMPILE_WIDECHAR && !(defined(BB_USER_WCSTOMBCS) && BB_USER_WCSTOMBCS)
 static BB_INLINE void bb_init_locale(void)
 {
 }
@@ -454,7 +454,11 @@ void bb_init(const char *applicationName, const char *sourceApplicationName, con
 	s_sourceIp = sourceIp;
 
 #if BB_USING(BB_PLATFORM_WINDOWS)
-	bb_connect((127 << 24) | 1, 0);
+	if((g_bb_initFlags & kBBInitFlag_NoDiscovery) == 0) {
+		bb_connect((127 << 24) | 1, 0);
+	} else {
+		bb_connect(0, 0);
+	}
 #else
 	bb_connect(0, 0);
 #endif
@@ -978,7 +982,7 @@ void bb_trace_dynamic_preformatted_w(const char *path, uint32_t line, const bb_w
 {
 #if defined(BB_WIDE_CHAR16) && BB_WIDE_CHAR16
 	bb_trace_dynamic_w(path, line, category, level, pieInstance, TEXT("%s"), preformatted);
-#else  // #if defined(BB_WIDE_CHAR16) && BB_WIDE_CHAR16
+#else // #if defined(BB_WIDE_CHAR16) && BB_WIDE_CHAR16
 	uint32_t pathId = 0;
 	uint32_t categoryId = 0;
 	bb_resolve_ids_w(path, category, &pathId, &categoryId, line);
