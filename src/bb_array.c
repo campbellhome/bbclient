@@ -6,6 +6,7 @@
 #if BB_ENABLED
 
 #include "bbclient/bb_array.h"
+#include "bbclient/bb_file.h"
 #include <string.h>
 
 // warning C4710: 'int snprintf(char *const ,const std::size_t,const char *const ,...)': function not inlined
@@ -26,10 +27,23 @@ s64 g_bba_allocatedBytes;
 
 static b32 s_bba_logAllocs;
 static b32 s_bba_logFailedAllocs;
+static bb_file_handle_t s_bba_logFile;
 void bba_set_logging(b32 allocs, b32 failedAllocs)
 {
 	s_bba_logAllocs = allocs;
 	s_bba_logFailedAllocs = failedAllocs;
+}
+void bba_set_log_path(const char *path)
+{
+	if(s_bba_logFile != BB_INVALID_FILE_HANDLE) {
+		bb_file_close(s_bba_logFile);
+		s_bba_logFile = BB_INVALID_FILE_HANDLE;
+	}
+	if(path && *path) {
+		if(s_bba_logFile == BB_INVALID_FILE_HANDLE) {
+			s_bba_logFile = bb_file_open_for_write(path);
+		}
+	}
 }
 
 #if BB_USING(BB_COMPILER_MSVC)
@@ -52,11 +66,15 @@ void bba_log_free(void *p, u32 allocated, u64 bytes, const char *file, int line)
 		if(bb_snprintf(buf, sizeof(buf), "%s(%d) : bba_free(" PRIPtr ") (%" PRIu64 " bytes)\n", file, line, p, bytes) < 0) {
 			buf[sizeof(buf) - 1] = '\0';
 		}
+		if(s_bba_logFile) {
+			bb_file_write(s_bba_logFile, buf, (u32)strlen(buf));
+		} else {
 #if BB_USING(BB_COMPILER_MSVC)
-		OutputDebugStringA(buf);
+			OutputDebugStringA(buf);
 #else
-		puts(buf);
+			puts(buf);
 #endif
+		}
 	}
 }
 
@@ -77,11 +95,15 @@ static BB_INLINE void bba_log_realloc(u64 oldp, void *newp, u32 allocated, u32 d
 		if(bb_snprintf(buf, sizeof(buf), "%s(%d) : bba_realloc(" PRIPtr ", " PRIPtr ") %" PRIu64 " bytes -> %" PRIu64 " bytes (%" PRIu64 " bytes)\n", file, line, (void *)oldp, newp, allocatedSize, desiredSize, desiredSize - allocatedSize) < 0) {
 			buf[sizeof(buf) - 1] = '\0';
 		}
+		if(s_bba_logFile) {
+			bb_file_write(s_bba_logFile, buf, (u32)strlen(buf));
+		} else {
 #if BB_USING(BB_COMPILER_MSVC)
-		OutputDebugStringA(buf);
+			OutputDebugStringA(buf);
 #else
-		puts(buf);
+			puts(buf);
 #endif
+		}
 	}
 }
 
@@ -93,11 +115,15 @@ static BB_INLINE void bba_log_overflowed_realloc(u64 oldp, u32 count, u32 increm
 		               file, line, (void *)oldp, count, increment, allocated, requested) < 0) {
 			buf[sizeof(buf) - 1] = '\0';
 		}
+		if(s_bba_logFile) {
+			bb_file_write(s_bba_logFile, buf, (u32)strlen(buf));
+		} else {
 #if BB_USING(BB_COMPILER_MSVC)
-		OutputDebugStringA(buf);
+			OutputDebugStringA(buf);
 #else
-		puts(buf);
+			puts(buf);
 #endif
+		}
 	}
 }
 static BB_INLINE void bba_log_failed_realloc(u64 oldp, u64 size, const char *file, int line)

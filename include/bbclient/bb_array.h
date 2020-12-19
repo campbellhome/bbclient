@@ -24,6 +24,7 @@ extern "C" {
 #endif
 
 void bba_set_logging(b32 allocs, b32 failedAllocs);
+void bba_set_log_path(const char* path);
 void bba_log_free(void *p, u32 allocated, u64 bytes, const char *file, int line);
 void *bba__raw_add(void *base, ptrdiff_t data_offset, u32 *count, u32 *allocated, u32 increment, u32 itemsize, b32 clear, b32 reserve_only, const char *file, int line);
 
