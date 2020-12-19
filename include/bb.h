@@ -71,6 +71,7 @@ typedef enum {
 	kBBLogLevel_Fatal,
 	kBBLogLevel_Count
 } bb_log_level_e;
+const char* bb_get_log_level_name(bb_log_level_e logLevel, const char* defaultValue);
 
 typedef enum {
 	kBBInitFlag_None = 0x0,

@@ -207,6 +207,24 @@ static BB_INLINE void bb_send(bb_decoded_packet_t *decoded)
 	bbcon_send(&s_con, decoded);
 }
 
+static const char *s_bbLogLevelNames[] = {
+	"Log",
+	"Warning",
+	"Error",
+	"Display",
+	"SetColor",
+	"VeryVerbose",
+	"Verbose",
+	"Fatal",
+};
+BB_CTASSERT(BB_ARRAYSIZE(s_bbLogLevelNames) == kBBLogLevel_Count);
+const char *bb_get_log_level_name(bb_log_level_e logLevel, const char *defaultValue)
+{
+	if(logLevel >= 0 && logLevel < kBBLogLevel_Count)
+		return s_bbLogLevelNames[logLevel];
+	return defaultValue;
+}
+
 bb_platform_e bb_platform(void)
 {
 #if BB_USING(BB_PLATFORM_WINDOWS)
