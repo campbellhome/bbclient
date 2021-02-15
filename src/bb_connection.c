@@ -33,6 +33,8 @@
 		BB_ERROR_A("bbcon", __VA_ARGS__);     \
 	}
 
+static void bbcon_disconnect_no_flush_no_lock(bb_connection_t * con);
+
 enum {
 	kBBCon_SendIntervalMillis = 500,
 };
@@ -356,7 +358,7 @@ static void bbcon_flush_no_lock(bb_connection_t *con, b32 retry)
 			if(ret == BB_SOCKET_ERROR) {
 				int err = BBNET_ERRNO;
 				BBCON_LOG("bbcon_flush: disconnected during select with errno %d (%s)", err, bbnet_error_to_string(err));
-				bbcon_disconnect_no_flush(con);
+				bbcon_disconnect_no_flush_no_lock(con);
 				break;
 			}
 
@@ -365,7 +367,7 @@ static void bbcon_flush_no_lock(bb_connection_t *con, b32 retry)
 				if(now >= timeout) // OS internal buffer has been full for a really long time (server crashed?), so we're done
 				{
 					BBCON_LOG("bbcon_flush: timed out after %" PRIu64 " ms", now - start);
-					bbcon_disconnect_no_flush(con);
+					bbcon_disconnect_no_flush_no_lock(con);
 					break;
 				}
 
@@ -380,7 +382,7 @@ static void bbcon_flush_no_lock(bb_connection_t *con, b32 retry)
 			if(ret == BB_SOCKET_ERROR) {
 				int err = BBNET_ERRNO;
 				BBCON_LOG("bbcon_flush: disconnected during send with errno %d (%s)", err, bbnet_error_to_string(err));
-				bbcon_disconnect_no_flush(con);
+				bbcon_disconnect_no_flush_no_lock(con);
 				break;
 			}
 
@@ -434,6 +436,16 @@ void bbcon_disconnect_no_flush(bb_connection_t *con)
 	bb_critical_section_unlock(&con->cs);
 }
 
+static void bbcon_disconnect_no_flush_no_lock(bb_connection_t* con)
+{
+	if (!con->cs.initialized || con->state == kBBConnection_NotConnected)
+		return;
+	if (con->socket != BB_INVALID_SOCKET) {
+		con->state = kBBConnection_NotConnected;
+		bbnet_gracefulclose(&con->socket);
+	}
+}
+
 void bbcon_flush(bb_connection_t *con)
 {
 	if(!con->cs.initialized)
@@ -452,7 +464,7 @@ void bbcon_try_flush(bb_connection_t *con)
 	bb_critical_section_unlock(&con->cs);
 }
 
-static void _bbcon_send(bb_connection_t *con, const void *pData, u32 nBytes)
+static void bbcon_send_no_lock(bb_connection_t *con, const void *pData, u32 nBytes)
 {
 	u64 now;
 	u32 nRemaining = nBytes;
@@ -485,7 +497,7 @@ void bbcon_send_raw(bb_connection_t *con, const void *pData, u32 nBytes)
 	bb_critical_section_lock(&con->cs);
 
 	if(con->socket != BB_INVALID_SOCKET) {
-		_bbcon_send(con, pData, nBytes);
+		bbcon_send_no_lock(con, pData, nBytes);
 	}
 
 	bb_critical_section_unlock(&con->cs);
@@ -512,7 +524,7 @@ void bbcon_send(bb_connection_t *con, bb_decoded_packet_t *decoded)
 	bb_critical_section_lock(&con->cs);
 
 	if(con->socket != BB_INVALID_SOCKET) {
-		_bbcon_send(con, buf, serializedLen);
+		bbcon_send_no_lock(con, buf, serializedLen);
 	}
 
 	bb_critical_section_unlock(&con->cs);
