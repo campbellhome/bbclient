@@ -7,7 +7,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\bbclient\bbclient.c">
+    <ClCompile Include="..\examples\bbclient_example_wchar.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
