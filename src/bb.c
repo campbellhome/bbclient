@@ -968,22 +968,36 @@ void bb_trace_dynamic(const char *path, uint32_t line, const char *category, bb_
 	va_end(args);
 }
 
-void bb_trace_dynamic_preformatted(const char *path, uint32_t line, const char *category, bb_log_level_e level, s32 pieInstance, const char *preformatted)
+void bb_trace_dynamic_preformatted_range(const char *path, uint32_t line, const char *category, bb_log_level_e level, int32_t pieInstance, const char *preformatted, const char *preformatted_end)
 {
 	uint32_t pathId = 0;
 	uint32_t categoryId = 0;
 	bb_resolve_ids(path, category, &pathId, &categoryId, line);
 
-	bb_trace_builder_t builder = { BB_EMPTY_INITIALIZER };
-	if(!bb_trace_begin(&builder, pathId, line)) {
-		return;
+	size_t len = (preformatted_end && preformatted_end > preformatted) ? (preformatted_end - preformatted) : strlen(preformatted);
+	if(len < kBBSize_LogText) {
+		bb_decoded_packet_t decoded = { BB_EMPTY_INITIALIZER };
+		bb_fill_header(&decoded, kBBPacketType_LogText, pathId, line);
+		decoded.packet.logText.categoryId = categoryId;
+		decoded.packet.logText.level = level;
+		decoded.packet.logText.pieInstance = pieInstance;
+		decoded.packet.logText.colors = s_bb_colors;
+		memcpy(&decoded.packet.logText.text, preformatted, len);
+		decoded.packet.logText.text[len] = '\0';
+		bb_send(&decoded);
+	} else {
+		bb_trace_partial_preformatted(path, line, category, level, pieInstance, preformatted, preformatted_end);
+		bb_trace_partial_end();
 	}
-	int len = (int)bb_strncpy(builder.textStart, preformatted, builder.textBufferSize);
-	bb_trace_end(&builder, len, categoryId, level, pieInstance);
+}
+
+void bb_trace_dynamic_preformatted(const char *path, uint32_t line, const char *category, bb_log_level_e level, int32_t pieInstance, const char *preformatted)
+{
+	bb_trace_dynamic_preformatted_range(path, line, category, level, pieInstance, preformatted, NULL);
 }
 
 #if BB_COMPILE_WIDECHAR
-void bb_trace_dynamic_w(const char *path, uint32_t line, const bb_wchar_t *category, bb_log_level_e level, s32 pieInstance, const bb_wchar_t *fmt, ...)
+void bb_trace_dynamic_w(const char *path, uint32_t line, const bb_wchar_t *category, bb_log_level_e level, int32_t pieInstance, const bb_wchar_t *fmt, ...)
 {
 	va_list args;
 	uint32_t pathId = 0;
@@ -996,7 +1010,7 @@ void bb_trace_dynamic_w(const char *path, uint32_t line, const bb_wchar_t *categ
 #endif // #if BB_COMPILE_WIDECHAR
 
 #if BB_COMPILE_WIDECHAR
-void bb_trace_dynamic_preformatted_w(const char *path, uint32_t line, const bb_wchar_t *category, bb_log_level_e level, s32 pieInstance, const bb_wchar_t *preformatted)
+void bb_trace_dynamic_preformatted_w(const char *path, uint32_t line, const bb_wchar_t *category, bb_log_level_e level, int32_t pieInstance, const bb_wchar_t *preformatted)
 {
 #if defined(BB_WIDE_CHAR16) && BB_WIDE_CHAR16
 	bb_trace_dynamic_w(path, line, category, level, pieInstance, TEXT("%s"), preformatted);
@@ -1019,31 +1033,46 @@ typedef struct bb_partial_log_builder_s {
 	bb_decoded_packet_t decoded;
 	uint32_t pathId;
 	uint32_t line;
-	int len;
-	uint8_t pad[4];
+	int32_t len;
+	int32_t partialPacketsSent;
 } bb_partial_log_builder_t;
 bb_thread_local bb_partial_log_builder_t s_bb_partial;
 
 void bb_trace_partial_end(void)
 {
-	if(s_bb_partial.len) {
+	if(s_bb_partial.len || s_bb_partial.partialPacketsSent) {
 		int len = s_bb_partial.len;
 		int maxLen;
 		bb_decoded_packet_t *decoded = &s_bb_partial.decoded;
 		bb_fill_header(decoded, kBBPacketType_LogText, s_bb_partial.pathId, s_bb_partial.line);
-		maxLen = sizeof(decoded->packet.logText.text) - 2;
+		maxLen = sizeof(decoded->packet.logText.text) - 1;
 		len = (len < 0 || len > maxLen) ? maxLen : len;
-		if(decoded->packet.logText.text[len - 1] != '\n') {
-			decoded->packet.logText.text[len++] = '\n';
-		}
 		decoded->packet.logText.text[len] = '\0';
 		decoded->packet.logText.colors = s_bb_colors;
 		bb_send(decoded);
 		s_bb_partial.len = 0;
+		s_bb_partial.partialPacketsSent = 0;
 	}
 }
 
-void bb_trace_partial(const char *path, uint32_t line, const char *category, bb_log_level_e level, s32 pieInstance, const char *fmt, ...)
+static void bb_trace_partial_packet(void)
+{
+	if(s_bb_partial.len) {
+		int len = s_bb_partial.len;
+		int maxLen;
+		bb_decoded_packet_t *decoded = &s_bb_partial.decoded;
+		bb_fill_header(decoded, kBBPacketType_LogTextPartial, s_bb_partial.pathId, s_bb_partial.line);
+		maxLen = sizeof(decoded->packet.logText.text) - 1;
+		len = (len < 0 || len > maxLen) ? maxLen : len;
+		decoded->packet.logText.text[len] = '\0';
+		decoded->packet.logText.colors = s_bb_colors;
+		bb_send(decoded);
+		s_bb_partial.len = 0;
+		++s_bb_partial.partialPacketsSent;
+	}
+}
+
+void bb_trace_partial(const char *path, uint32_t line, const char *category, bb_log_level_e level, int32_t pieInstance, const char *fmt, ...)
 {
 	int textLen, i;
 	va_list args;
@@ -1053,7 +1082,7 @@ void bb_trace_partial(const char *path, uint32_t line, const char *category, bb_
 	bb_decoded_packet_t *decoded = &s_bb_partial.decoded;
 	bb_resolve_ids(path, category, &pathId, &categoryId, line);
 
-	if(s_bb_partial.len > 0 &&
+	if((s_bb_partial.len || s_bb_partial.partialPacketsSent) &&
 	   ((u32)level != decoded->packet.logText.level ||
 	    categoryId != decoded->packet.logText.categoryId ||
 	    pieInstance != decoded->packet.logText.pieInstance)) {
@@ -1076,17 +1105,60 @@ void bb_trace_partial(const char *path, uint32_t line, const char *category, bb_
 	for(i = 0; i < textLen; ++i) {
 		char c = text[i];
 		if(s_bb_partial.len >= (int)(sizeof(text) - 1)) {
-			bb_trace_partial_end();
+			bb_trace_partial_packet();
 
-			// help out vs2017 static analysis - bb_trace_partial_end() does this,
+			// help out vs2017 static analysis - bb_trace_partial_packet() does this,
 			// but it can't figure that out, so it thinks we could write past the
 			// end of decoded->packet.logText.text.
 			s_bb_partial.len = 0;
 		}
 		decoded->packet.logText.text[s_bb_partial.len++] = c;
-		if(c == '\n') {
-			bb_trace_partial_end();
+	}
+	if(textLen) {
+		bb_trace_partial_packet();
+	}
+	decoded->packet.logText.text[s_bb_partial.len] = '\0';
+}
+
+void bb_trace_partial_preformatted(const char *path, uint32_t line, const char *category, bb_log_level_e level, int32_t pieInstance, const char *preformatted, const char *preformatted_end)
+{
+	if(!preformatted || !*preformatted)
+		return;
+
+	uint32_t pathId = 0;
+	uint32_t categoryId = 0;
+	bb_decoded_packet_t *decoded = &s_bb_partial.decoded;
+	bb_resolve_ids(path, category, &pathId, &categoryId, line);
+
+	if((s_bb_partial.len || s_bb_partial.partialPacketsSent) &&
+	   ((u32)level != decoded->packet.logText.level ||
+	    categoryId != decoded->packet.logText.categoryId ||
+	    pieInstance != decoded->packet.logText.pieInstance)) {
+		bb_trace_partial_end();
+	}
+
+	s_bb_partial.pathId = pathId;
+	s_bb_partial.line = line;
+	decoded->packet.logText.level = level;
+	decoded->packet.logText.categoryId = categoryId;
+	decoded->packet.logText.pieInstance = pieInstance;
+
+	size_t textLen = (preformatted_end && preformatted_end > preformatted) ? preformatted_end - preformatted : strlen(preformatted);
+
+	for(size_t i = 0; i < textLen; ++i) {
+		char c = preformatted[i];
+		if(s_bb_partial.len >= (int)(sizeof(decoded->packet.logText.text) - 1)) {
+			bb_trace_partial_packet();
+
+			// help out vs2017 static analysis - bb_trace_partial_packet() does this,
+			// but it can't figure that out, so it thinks we could write past the
+			// end of decoded->packet.logText.text.
+			s_bb_partial.len = 0;
 		}
+		decoded->packet.logText.text[s_bb_partial.len++] = c;
+	}
+	if(textLen) {
+		bb_trace_partial_packet();
 	}
 	decoded->packet.logText.text[s_bb_partial.len] = '\0';
 }

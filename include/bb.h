@@ -71,7 +71,7 @@ typedef enum {
 	kBBLogLevel_Fatal,
 	kBBLogLevel_Count
 } bb_log_level_e;
-const char* bb_get_log_level_name(bb_log_level_e logLevel, const char* defaultValue);
+const char *bb_get_log_level_name(bb_log_level_e logLevel, const char *defaultValue);
 
 typedef enum {
 	kBBInitFlag_None = 0x0,
@@ -151,7 +151,9 @@ uint32_t bb_resolve_ids_w(const char *path, const bb_wchar_t *category, uint32_t
 void bb_trace(uint32_t pathId, uint32_t line, uint32_t categoryId, bb_log_level_e level, int32_t pieInstance, const char *fmt, ...);
 void bb_trace_dynamic(const char *path, uint32_t line, const char *category, bb_log_level_e level, int32_t pieInstance, const char *fmt, ...);
 void bb_trace_dynamic_preformatted(const char *path, uint32_t line, const char *category, bb_log_level_e level, int32_t pieInstance, const char *preformatted);
+void bb_trace_dynamic_preformatted_range(const char *path, uint32_t line, const char *category, bb_log_level_e level, int32_t pieInstance, const char *preformatted, const char *preformatted_end);
 void bb_trace_partial(const char *path, uint32_t line, const char *category, bb_log_level_e level, int32_t pieInstance, const char *fmt, ...);
+void bb_trace_partial_preformatted(const char *path, uint32_t line, const char *category, bb_log_level_e level, int32_t pieInstance, const char *preformatted, const char *preformatted_end);
 void bb_trace_partial_end(void);
 
 #if BB_WIDECHAR
