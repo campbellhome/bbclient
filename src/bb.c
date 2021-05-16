@@ -984,7 +984,11 @@ void bb_trace_dynamic_preformatted_range(const char *path, uint32_t line, const 
 		decoded.packet.logText.colors = s_bb_colors;
 		memcpy(&decoded.packet.logText.text, preformatted, len);
 		decoded.packet.logText.text[len] = '\0';
-		bb_send(&decoded);
+		if(decoded.packet.logText.level == kBBLogLevel_SetColor) {
+			bb_resolve_and_set_colors(decoded.packet.logText.text);
+		} else {
+			bb_send(&decoded);
+		}
 	} else {
 		bb_trace_partial_preformatted(path, line, category, level, pieInstance, preformatted, preformatted_end);
 		bb_trace_partial_end();
@@ -1049,7 +1053,11 @@ void bb_trace_partial_end(void)
 		len = (len < 0 || len > maxLen) ? maxLen : len;
 		decoded->packet.logText.text[len] = '\0';
 		decoded->packet.logText.colors = s_bb_colors;
-		bb_send(decoded);
+		if(decoded->packet.logText.level == kBBLogLevel_SetColor) {
+			bb_resolve_and_set_colors(decoded->packet.logText.text);
+		} else {
+			bb_send(decoded);
+		}
 		s_bb_partial.len = 0;
 		s_bb_partial.partialPacketsSent = 0;
 	}
@@ -1066,7 +1074,11 @@ static void bb_trace_partial_packet(void)
 		len = (len < 0 || len > maxLen) ? maxLen : len;
 		decoded->packet.logText.text[len] = '\0';
 		decoded->packet.logText.colors = s_bb_colors;
-		bb_send(decoded);
+		if(decoded->packet.logText.level == kBBLogLevel_SetColor) {
+			bb_resolve_and_set_colors(decoded->packet.logText.text);
+		} else {
+			bb_send(decoded);
+		}
 		s_bb_partial.len = 0;
 		++s_bb_partial.partialPacketsSent;
 	}
