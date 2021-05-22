@@ -81,6 +81,14 @@ static void *s_bb_send_callback_context;
 static bb_incoming_packet_handler s_bb_incoming_packet_handler;
 static void *s_bb_incoming_packet_context;
 
+typedef struct bbInitialBuffer_s {
+	bb_critical_section cs;
+	void *data;
+	u32 size;
+	u32 used;
+} bbInitialBuffer_t;
+static bbInitialBuffer_t s_initial_buffer;
+
 typedef struct bbtraceBuffer_s {
 	char packetBuffer[16 * 1024];
 #if BB_COMPILE_WIDECHAR
@@ -184,27 +192,45 @@ static BB_INLINE void bb_fill_header(bb_decoded_packet_t *decoded, bb_packet_typ
 
 static BB_INLINE void bb_send(bb_decoded_packet_t *decoded)
 {
+	u8 buf[BB_MAX_PACKET_BUFFER_SIZE];
+	u16 serializedLen = bbpacket_serialize(decoded, buf + 2, sizeof(buf) - 2);
+	if(serializedLen) {
+		serializedLen += 2;
+		buf[0] = (u8)(serializedLen >> 8);
+		buf[1] = (u8)(serializedLen & 0xFF);
+	} else {
+		bb_error("bb_send failed to encode packet");
+		return;
+	}
+
+	if(s_initial_buffer.cs.initialized) {
+		bb_critical_section_lock(&s_initial_buffer.cs);
+		if(s_initial_buffer.data != NULL) {
+			if(s_initial_buffer.used + serializedLen <= s_initial_buffer.size) {
+				memcpy((u8 *)s_initial_buffer.data + s_initial_buffer.used, buf, serializedLen);
+				s_initial_buffer.used += serializedLen;
+			} else {
+				bb_log("bb_send filled initial buffer of size %u - discarding", s_initial_buffer.size);
+				s_initial_buffer.data = NULL;
+				s_initial_buffer.size = 0u;
+				s_initial_buffer.used = 0u;
+			}
+		}
+		bb_critical_section_unlock(&s_initial_buffer.cs);
+	}
+
 	if(s_bb_send_callback) {
 		(*s_bb_send_callback)(s_bb_send_callback_context, decoded);
 	}
 	if(s_fp || s_bb_write_callback) {
-		u8 buf[BB_MAX_PACKET_BUFFER_SIZE];
-		u16 serializedLen = bbpacket_serialize(decoded, buf + 2, sizeof(buf) - 2);
-		if(serializedLen) {
-			serializedLen += 2;
-			buf[0] = (u8)(serializedLen >> 8);
-			buf[1] = (u8)(serializedLen & 0xFF);
-			if(s_bb_write_callback) {
-				(*s_bb_write_callback)(s_bb_write_callback_context, buf, serializedLen);
-			}
-			if(s_fp) {
-				bb_file_write(s_fp, buf, serializedLen);
-			}
-		} else {
-			bb_error("bb_send failed to encode packet");
+		if(s_bb_write_callback) {
+			(*s_bb_write_callback)(s_bb_write_callback_context, buf, serializedLen);
+		}
+		if(s_fp) {
+			bb_file_write(s_fp, buf, serializedLen);
 		}
 	}
-	bbcon_send(&s_con, decoded);
+	bbcon_send_raw(&s_con, buf, serializedLen);
 }
 
 static const char *s_bbLogLevelNames[] = {
@@ -307,7 +333,7 @@ static void bb_send_ids(bb_ids_t *ids, bb_packet_type_e packetType, b32 bCallbac
 	}
 }
 
-static void bb_send_initial(b32 bCallbacks, b32 bSocket, b32 bFile)
+static bb_decoded_packet_t bb_build_appinfo(void)
 {
 	bb_decoded_packet_t decoded;
 	decoded.type = kBBPacketType_AppInfo;
@@ -321,6 +347,51 @@ static void bb_send_initial(b32 bCallbacks, b32 bSocket, b32 bFile)
 	decoded.packet.appInfo.platform = bb_platform();
 	decoded.packet.appInfo.microsecondsFromEpoch = bb_current_time_microseconds_from_epoch();
 	bb_strncpy(decoded.packet.appInfo.applicationName, s_applicationName, sizeof(decoded.packet.appInfo.applicationName));
+	return decoded;
+}
+
+static void bb_save_initial_appinfo(void)
+{
+	if(s_initial_buffer.cs.initialized) {
+		bb_critical_section_lock(&s_initial_buffer.cs);
+		if(s_initial_buffer.data != NULL) {
+			if(s_initial_buffer.used == 0) {
+				bb_decoded_packet_t decoded = bb_build_appinfo();
+				u8 buf[BB_MAX_PACKET_BUFFER_SIZE];
+				u16 serializedLen = bbpacket_serialize(&decoded, buf + 2, sizeof(buf) - 2);
+				if(serializedLen) {
+					serializedLen += 2;
+					buf[0] = (u8)(serializedLen >> 8);
+					buf[1] = (u8)(serializedLen & 0xFF);
+				}
+
+				if(s_initial_buffer.used + serializedLen <= s_initial_buffer.size) {
+					memcpy((u8 *)s_initial_buffer.data + s_initial_buffer.used, buf, serializedLen);
+					s_initial_buffer.used += serializedLen;
+				} else {
+					bb_log("bb_send_initial filled initial buffer of size %u - discarding", s_initial_buffer.size);
+					s_initial_buffer.data = NULL;
+					s_initial_buffer.size = 0u;
+					s_initial_buffer.used = 0u;
+				}
+			}
+		}
+		bb_critical_section_unlock(&s_initial_buffer.cs);
+	}
+}
+
+static void bb_send_initial(b32 bCallbacks, b32 bSocket, b32 bFile)
+{
+	if(bSocket && s_initial_buffer.cs.initialized) {
+		bb_critical_section_lock(&s_initial_buffer.cs);
+		if(s_initial_buffer.data != NULL && s_initial_buffer.used > 0) {
+			bbcon_send_raw(&s_con, s_initial_buffer.data, s_initial_buffer.used);
+			bSocket = false;
+		}
+		bb_critical_section_unlock(&s_initial_buffer.cs);
+	}
+
+	bb_decoded_packet_t decoded = bb_build_appinfo();
 	bb_send_directed(&decoded, bCallbacks, bSocket, bFile);
 
 	bb_send_ids(&s_bb_pathIds, kBBPacketType_FileId, bCallbacks, bSocket, bFile);
@@ -470,6 +541,7 @@ void bb_init(const char *applicationName, const char *sourceApplicationName, con
 	bbcon_init(&s_con);
 	s_con.flags |= kBBCon_Blackbox;
 	s_sourceIp = sourceIp;
+	bb_save_initial_appinfo();
 
 #if BB_USING(BB_PLATFORM_WINDOWS)
 	if((g_bb_initFlags & kBBInitFlag_NoDiscovery) == 0) {
@@ -514,6 +586,28 @@ void bb_shutdown(const char *file, int line)
 		s_bb_trace_packet_buffer = NULL;
 	}
 	bb_shutdown_locale();
+	bb_critical_section_shutdown(&s_initial_buffer.cs);
+	memset(&s_initial_buffer, 0, sizeof(s_initial_buffer));
+}
+
+void bb_set_initial_buffer(void *buffer, uint32_t bufferSize)
+{
+	if(s_con.cs.initialized && buffer) {
+		bb_error("bb initial buffer can only be set before bb_init");
+		BB_ASSERT(false);
+		buffer = NULL;
+		bufferSize = 0;
+	}
+
+	if(!s_initial_buffer.cs.initialized) {
+		bb_critical_section_init(&s_initial_buffer.cs);
+	}
+
+	bb_critical_section_lock(&s_initial_buffer.cs);
+	s_initial_buffer.data = buffer;
+	s_initial_buffer.size = bufferSize;
+	s_initial_buffer.used = 0u;
+	bb_critical_section_unlock(&s_initial_buffer.cs);
 }
 
 int bb_is_connected(void)
@@ -768,21 +862,21 @@ void bb_resolve_path_id(const char *path, uint32_t *pathId, uint32_t line)
 static bb_color_t bb_resolve_color_str(const char *str)
 {
 	// clang-format off
-	if(!strncmp("0000", str, 4)) return kBBColor_UE4_Black;
-	if(!strncmp("1000", str, 4)) return kBBColor_UE4_DarkRed;
-	if(!strncmp("0100", str, 4)) return kBBColor_UE4_DarkGreen;
-	if(!strncmp("0010", str, 4)) return kBBColor_UE4_DarkBlue;
-	if(!strncmp("1100", str, 4)) return kBBColor_UE4_DarkYellow;
-	if(!strncmp("0110", str, 4)) return kBBColor_UE4_DarkCyan;
-	if(!strncmp("1010", str, 4)) return kBBColor_UE4_DarkPurple;
-	if(!strncmp("1110", str, 4)) return kBBColor_UE4_DarkWhite;
-	if(!strncmp("1001", str, 4)) return kBBColor_UE4_Red;
-	if(!strncmp("0101", str, 4)) return kBBColor_UE4_Green;
-	if(!strncmp("0011", str, 4)) return kBBColor_UE4_Blue;
-	if(!strncmp("1101", str, 4)) return kBBColor_UE4_Yellow;
-	if(!strncmp("0111", str, 4)) return kBBColor_UE4_Cyan;
-	if(!strncmp("1011", str, 4)) return kBBColor_UE4_Purple;
-	if(!strncmp("1111", str, 4)) return kBBColor_UE4_White;
+	if (!strncmp("0000", str, 4)) return kBBColor_UE4_Black;
+	if (!strncmp("1000", str, 4)) return kBBColor_UE4_DarkRed;
+	if (!strncmp("0100", str, 4)) return kBBColor_UE4_DarkGreen;
+	if (!strncmp("0010", str, 4)) return kBBColor_UE4_DarkBlue;
+	if (!strncmp("1100", str, 4)) return kBBColor_UE4_DarkYellow;
+	if (!strncmp("0110", str, 4)) return kBBColor_UE4_DarkCyan;
+	if (!strncmp("1010", str, 4)) return kBBColor_UE4_DarkPurple;
+	if (!strncmp("1110", str, 4)) return kBBColor_UE4_DarkWhite;
+	if (!strncmp("1001", str, 4)) return kBBColor_UE4_Red;
+	if (!strncmp("0101", str, 4)) return kBBColor_UE4_Green;
+	if (!strncmp("0011", str, 4)) return kBBColor_UE4_Blue;
+	if (!strncmp("1101", str, 4)) return kBBColor_UE4_Yellow;
+	if (!strncmp("0111", str, 4)) return kBBColor_UE4_Cyan;
+	if (!strncmp("1011", str, 4)) return kBBColor_UE4_Purple;
+	if (!strncmp("1111", str, 4)) return kBBColor_UE4_White;
 	// clang-format on
 	return kBBColor_Default;
 }

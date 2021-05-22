@@ -32,6 +32,9 @@ static const char *s_pathNames[] = {
 
 static b32 s_bQuit = false;
 
+enum { InitialBufferLen = 1024 * 1024 };
+static uint8_t s_initialBuffer[InitialBufferLen];
+
 static void incoming_packet_handler(const bb_decoded_packet_t *decoded, void *context)
 {
 	(void)context;
@@ -51,6 +54,8 @@ int main(int argc, const char **argv)
 	uint32_t pathIndex = 0;
 	(void)argc;
 	(void)argv;
+
+	bb_set_initial_buffer(s_initialBuffer, InitialBufferLen);
 
 	//bb_init_file_w(L"bbclient.bbox");
 	//BB_INIT(L"bbclient: matt");
@@ -117,7 +122,7 @@ int main(int argc, const char **argv)
 	s_bQuit = false;
 	printf("Here we go...\n");
 	bb_disconnect();
-	bb_connect(0, 0);
+	bb_connect(127 << 24 | 1, 0);
 
 	while(BB_IS_CONNECTED() && !s_bQuit) {
 		BB_TICK();
