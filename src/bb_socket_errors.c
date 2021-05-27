@@ -50,6 +50,9 @@ const char *bbnet_error_to_string(int err)
 		BBNET_SOCKET_ERROR_CASE(BBNET_EDQUOT);
 		BBNET_SOCKET_ERROR_CASE(BBNET_ESTALE);
 		BBNET_SOCKET_ERROR_CASE(BBNET_EREMOTE);
+#if defined(BBNET_EPIPE)
+		BBNET_SOCKET_ERROR_CASE(BBNET_EPIPE);
+#endif
 	case 0:
 		return "no error";
 	default:

@@ -33,7 +33,7 @@
 		BB_ERROR_A("bbcon", __VA_ARGS__);     \
 	}
 
-static void bbcon_disconnect_no_flush_no_lock(bb_connection_t * con);
+static void bbcon_disconnect_no_flush_no_lock(bb_connection_t *con);
 
 enum {
 	kBBCon_SendIntervalMillis = 500,
@@ -378,7 +378,12 @@ static void bbcon_flush_no_lock(bb_connection_t *con, b32 retry)
 				continue; // OS internal buffer is full temporarily, so we'll retry
 			}
 
-			ret = send(con->socket, (const char *)(con->sendBuffer + nSendCursor), (int)(con->sendCursor - nSendCursor), 0);
+#if defined(MSG_NOSIGNAL)
+			const int flags = MSG_NOSIGNAL;
+#else
+			const int flags = 0;
+#endif
+			ret = send(con->socket, (const char *)(con->sendBuffer + nSendCursor), (int)(con->sendCursor - nSendCursor), flags);
 			if(ret == BB_SOCKET_ERROR) {
 				int err = BBNET_ERRNO;
 				BBCON_LOG("bbcon_flush: disconnected during send with errno %d (%s)", err, bbnet_error_to_string(err));
@@ -436,11 +441,11 @@ void bbcon_disconnect_no_flush(bb_connection_t *con)
 	bb_critical_section_unlock(&con->cs);
 }
 
-static void bbcon_disconnect_no_flush_no_lock(bb_connection_t* con)
+static void bbcon_disconnect_no_flush_no_lock(bb_connection_t *con)
 {
-	if (!con->cs.initialized || con->state == kBBConnection_NotConnected)
+	if(!con->cs.initialized || con->state == kBBConnection_NotConnected)
 		return;
-	if (con->socket != BB_INVALID_SOCKET) {
+	if(con->socket != BB_INVALID_SOCKET) {
 		con->state = kBBConnection_NotConnected;
 		bbnet_gracefulclose(&con->socket);
 	}

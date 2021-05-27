@@ -47,6 +47,7 @@
 #define BBNET_EDQUOT          WSAEDQUOT
 #define BBNET_ESTALE          WSAESTALE
 #define BBNET_EREMOTE         WSAEREMOTE
+//#define BBNET_EPIPE         WSAEPIPE
 // clang-format on
 
 #else // #if BB_USING(BB_COMPILER_MSVC)
@@ -89,6 +90,7 @@
 #define BBNET_EDQUOT          EDQUOT
 #define BBNET_ESTALE          ESTALE
 #define BBNET_EREMOTE         EREMOTE
+#define BBNET_EPIPE           EPIPE
 // clang-format on
 
 #endif // #else // #if BB_USING(BB_COMPILER_MSVC)
