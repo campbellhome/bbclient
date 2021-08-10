@@ -35,7 +35,11 @@ _Releases_lock_(cs->platform) void bb_critical_section_unlock_impl(bb_critical_s
 
 void bb_critical_section_init(bb_critical_section *cs)
 {
-	pthread_mutex_init(&cs->platform, NULL);
+	pthread_mutexattr_t attr;
+	pthread_mutexattr_init(&attr);
+	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutex_init(&cs->platform, &attr);
+	pthread_mutexattr_destroy(&attr);
 	cs->initialized = true;
 }
 
